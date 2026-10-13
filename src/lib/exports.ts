@@ -154,7 +154,7 @@ export async function exportVideo(opts: {
   for (let i = 0; i < slides.length; i++) {
     if (signal.aborted) throw new Error("Cancelled");
     onProgress(`Recording voiceover ${i + 1} of ${slides.length}…`, (i / slides.length) * 40);
-    const text = slides[i].notes?.trim();
+    const text = slides[i]?.notes?.trim();
     buffers.push(text ? await audioCtx.decodeAudioData(b64ToArrayBuffer(await narrate(text))) : null);
   }
   const imgs = await Promise.all(images.map((src) => new Promise<HTMLImageElement>((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = src; })));

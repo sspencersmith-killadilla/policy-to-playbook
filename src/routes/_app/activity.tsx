@@ -7,9 +7,9 @@ import { MONTHLY_GENERATION_LIMIT } from "@/lib/course";
 export const Route = createFileRoute("/_app/activity")({
   head: () => ({
     meta: [
-      { title: "Activity — Coursewright" },
+      { title: "Activity — Refrain" },
       { name: "description", content: "Audit log of changes, approvals and exports." },
-      { property: "og:title", content: "Activity — Coursewright" },
+      { property: "og:title", content: "Activity — Refrain" },
       { property: "og:description", content: "Audit log of changes, approvals and exports." },
     ],
   }),

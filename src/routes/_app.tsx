@@ -1,3 +1,4 @@
+import mark from "@/assets/refrain-mark.png";
 import { createFileRoute, Link, Outlet, useNavigate, useLocation } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { LayoutGrid, Plus, Palette, Users, History, LogOut } from "lucide-react";
@@ -44,7 +45,7 @@ function Shell({ email }: { email: string }) {
   return (
     <div className="flex min-h-screen">
       <aside className="no-print sticky top-0 flex h-screen w-60 flex-col border-r bg-sidebar p-4">
-        <Link to="/dashboard" className="font-display px-2 text-xl font-semibold">Coursewright</Link>
+        <Link to="/dashboard" className="flex items-center gap-2 px-2 font-display text-xl font-bold text-primary"><img src={mark} alt="" width={28} height={28} /> Refrain</Link>
         <div className="mt-6">
           <Select value={current.org_id} onValueChange={(v) => (v === "__new" ? (window.location.href = "/dashboard?newOrg=1") : setCurrent(v))}>
             <SelectTrigger className="bg-card"><SelectValue /></SelectTrigger>

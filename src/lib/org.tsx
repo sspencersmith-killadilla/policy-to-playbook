@@ -15,7 +15,7 @@ type Ctx = {
 };
 
 const OrgContext = createContext<Ctx | null>(null);
-const KEY = "cw.currentOrg";
+const KEY = "refrain.currentOrg";
 
 export function OrgProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const qc = useQueryClient();

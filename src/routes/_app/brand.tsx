@@ -14,9 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 export const Route = createFileRoute("/_app/brand")({
   head: () => ({
     meta: [
-      { title: "Brand kit — Refrain" },
+      { title: "Brand kit — Relay" },
       { name: "description", content: "Set your organization's logo, colors, fonts and narrator voice." },
-      { property: "og:title", content: "Brand kit — Refrain" },
+      { property: "og:title", content: "Brand kit — Relay" },
       { property: "og:description", content: "Logo, colors, fonts and voice for every course." },
     ],
   }),

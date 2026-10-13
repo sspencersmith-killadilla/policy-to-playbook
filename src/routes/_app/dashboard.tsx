@@ -13,9 +13,9 @@ export const Route = createFileRoute("/_app/dashboard")({
   validateSearch: (s: Record<string, unknown>): { newOrg?: number } => (s["newOrg"] ? { newOrg: 1 } : {}),
   head: () => ({
     meta: [
-      { title: "Courses — Refrain" },
+      { title: "Courses — Relay" },
       { name: "description", content: "Your organization's training courses." },
-      { property: "og:title", content: "Courses — Refrain" },
+      { property: "og:title", content: "Courses — Relay" },
       { property: "og:description", content: "Your organization's training courses." },
     ],
   }),

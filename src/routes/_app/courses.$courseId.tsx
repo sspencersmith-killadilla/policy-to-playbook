@@ -24,9 +24,9 @@ import { Progress } from "@/components/ui/progress";
 export const Route = createFileRoute("/_app/courses/$courseId")({
   head: () => ({
     meta: [
-      { title: "Edit course — Refrain" },
+      { title: "Edit course — Relay" },
       { name: "description", content: "Edit, approve and export your training course." },
-      { property: "og:title", content: "Edit course — Refrain" },
+      { property: "og:title", content: "Edit course — Relay" },
       { property: "og:description", content: "Edit, approve and export your training course." },
     ],
   }),

@@ -1,14 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, FileText, Palette, Film, Package, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import mark from "@/assets/refrain-mark.png";
+import mark from "@/assets/relay-mark.png";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Refrain — Turn any policy into branded training" },
-      { name: "description", content: "Upload a code of conduct or SOP. Refrain drafts an editable, branded training course with a quiz, then exports slides, narrated video or SCORM." },
-      { property: "og:title", content: "Refrain — Turn any policy into branded training" },
+      { title: "Relay — Turn any policy into branded training" },
+      { name: "description", content: "Upload a code of conduct or SOP. Relay drafts an editable, branded training course with a quiz, then exports slides, narrated video or SCORM." },
+      { property: "og:title", content: "Relay — Turn any policy into branded training" },
       { property: "og:description", content: "Policy in, training out. Slides, narrated video and SCORM exports for your LMS." },
     ],
   }),
@@ -29,7 +29,7 @@ function Index() {
     <div className="min-h-screen">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
         <span className="flex items-center gap-2 font-display text-2xl font-bold text-primary">
-          <img src={mark} alt="" width={32} height={32} /> Refrain
+          <img src={mark} alt="" width={32} height={32} /> Relay
         </span>
         <Button asChild><Link to="/auth">Sign in</Link></Button>
       </header>
@@ -41,13 +41,13 @@ function Index() {
               Your policy, told once. <span className="text-gradient-brand">Remembered by everyone.</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg text-muted-foreground">
-              Refrain turns a code of conduct or SOP into a branded training course with scenarios and a quiz. Review it, approve it, and send it out as slides, video or a SCORM package.
+              Relay turns a code of conduct or SOP into a branded training course with scenarios and a quiz. Review it, approve it, and send it out as slides, video or a SCORM package.
             </p>
             <div className="mt-8 flex gap-3">
               <Button size="lg" asChild><Link to="/auth" search={{ mode: "signup" }}>Build your first course <ArrowRight /></Link></Button>
             </div>
           </div>
-          <img src={mark} alt="Refrain logo" width={256} height={256} className="mx-auto w-56 md:w-72" />
+          <img src={mark} alt="Relay logo" width={256} height={256} className="mx-auto w-56 md:w-72" />
         </section>
         <section className="mx-auto grid max-w-6xl gap-4 px-6 pb-20 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f) => (
@@ -59,7 +59,7 @@ function Index() {
           ))}
         </section>
       </main>
-      <footer className="border-t py-8 text-center text-sm text-muted-foreground">Refrain · a Civic Plexus app</footer>
+      <footer className="border-t py-8 text-center text-sm text-muted-foreground">Relay · a Civic Plexus app</footer>
     </div>
   );
 }

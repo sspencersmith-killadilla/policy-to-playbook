@@ -10,9 +10,9 @@ export const Route = createFileRoute("/present/$courseId")({
   validateSearch: (s: Record<string, unknown>): { slide?: number } => ({ slide: Math.max(1, Number(s["slide"]) || 1) }),
   head: () => ({
     meta: [
-      { title: "Present — Refrain" },
+      { title: "Present — Relay" },
       { name: "description", content: "Present your training course full screen." },
-      { property: "og:title", content: "Present — Refrain" },
+      { property: "og:title", content: "Present — Relay" },
       { property: "og:description", content: "Present your training course." },
     ],
   }),

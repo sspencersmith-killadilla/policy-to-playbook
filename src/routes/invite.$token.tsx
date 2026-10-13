@@ -8,9 +8,9 @@ export const Route = createFileRoute("/invite/$token")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Join your team — Refrain" },
+      { title: "Join your team — Relay" },
       { name: "description", content: "Accept your invitation to join an organization." },
-      { property: "og:title", content: "Join your team — Refrain" },
+      { property: "og:title", content: "Join your team — Relay" },
       { property: "og:description", content: "Accept your invitation." },
     ],
   }),
@@ -30,7 +30,7 @@ function Invite() {
     }
     supabase.rpc("accept_invite", { _token: token }).then(({ data, error }) => {
       if (error) { setErr(error.message); return; }
-      localStorage.setItem("refrain.currentOrg", data as string);
+      localStorage.setItem("relay.currentOrg", data as string);
       window.location.href = "/dashboard";
     });
   }, [loading, user, token, navigate]);

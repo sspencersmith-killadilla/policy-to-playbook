@@ -23,6 +23,7 @@ const labels: Record<string, string> = {
   "brand.updated": "Updated the brand kit",
   "member.invited": "Invited",
   "member.removed": "Removed a member",
+  "clip.generated": "Generated an AI scene clip",
 };
 
 function Activity() {

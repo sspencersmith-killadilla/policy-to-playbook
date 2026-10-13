@@ -9,6 +9,9 @@ export type Slide = {
   body: string | null;
   notes: string;
   source: string;
+  /** Optional AI scene clip (storage path) played before this slide in the narrated video. */
+  clip_path?: string | null;
+  clip_prompt?: string | null;
 };
 
 export type QuizQuestion = {
@@ -92,3 +95,6 @@ export function canEdit(role: string | null | undefined) {
 
 /** Monthly AI generation allowance per organization. */
 export const MONTHLY_GENERATION_LIMIT = 30;
+
+/** Monthly AI scene clip allowance per organization (clips are the most expensive item). */
+export const MONTHLY_CLIP_LIMIT = 20;

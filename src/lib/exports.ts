@@ -144,6 +144,7 @@ export async function exportVideo(opts: {
   title: string;
   slides: Slide[];
   images: string[];
+  clips?: (string | null)[];
   narrate: (text: string) => Promise<string>;
   onProgress: (msg: string, pct: number) => void;
   signal: AbortSignal;
@@ -157,6 +158,19 @@ export async function exportVideo(opts: {
     const text = slides[i]?.notes?.trim();
     buffers.push(text ? await audioCtx.decodeAudioData(b64ToArrayBuffer(await narrate(text))) : null);
   }
+  const clipEls: (HTMLVideoElement | null)[] = await Promise.all(
+    (opts.clips ?? []).map((src) => {
+      if (!src) return Promise.resolve(null);
+      return fetch(src).then((r) => r.blob()).then((b) => new Promise<HTMLVideoElement>((res, rej) => {
+        const v = document.createElement("video");
+        v.preload = "auto";
+        v.playsInline = true;
+        v.oncanplaythrough = () => res(v);
+        v.onerror = () => rej(new Error("A scene clip could not be loaded."));
+        v.src = URL.createObjectURL(b);
+      }));
+    }),
+  );
   const imgs = await Promise.all(images.map((src) => new Promise<HTMLImageElement>((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = src; })));
 
   const canvas = document.createElement("canvas");
@@ -171,16 +185,26 @@ export async function exportVideo(opts: {
   rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
   const stopped = new Promise<void>((r) => (rec.onstop = () => r()));
 
-  let current = imgs[0]!;
+  let current: CanvasImageSource = imgs[0]!;
   const draw = () => ctx.drawImage(current, 0, 0, 1280, 720);
   draw();
-  const timer = setInterval(draw, 1000 / 15);
+  const timer = setInterval(draw, 1000 / 30);
   rec.start(1000);
-  const total = buffers.reduce((a, b) => a + (b?.duration ?? 3) + 0.8, 0);
+  const total = buffers.reduce((a, b) => a + (b?.duration ?? 3) + 0.8, 0) + clipEls.reduce((a, v) => a + (v?.duration ?? 0), 0);
   let elapsed = 0;
   try {
     for (let i = 0; i < slides.length; i++) {
       if (signal.aborted) throw new Error("Cancelled");
+      const clip = clipEls[i];
+      if (clip) {
+        onProgress(`Recording scene clip for slide ${i + 1}…`, 40 + (elapsed / total) * 60);
+        audioCtx.createMediaElementSource(clip).connect(dest);
+        current = clip;
+        clip.currentTime = 0;
+        await clip.play();
+        await new Promise<void>((r) => (clip.onended = () => r()));
+        elapsed += clip.duration;
+      }
       current = imgs[i]!;
       draw();
       const buf = buffers[i];

@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { MONTHLY_GENERATION_LIMIT, newId, type CourseContent, type Slide } from "./course";
+import { MONTHLY_CLIP_LIMIT, MONTHLY_GENERATION_LIMIT, newId, type CourseContent, type Slide } from "./course";
 
 const slideSchema = {
   type: "object",
@@ -182,4 +182,54 @@ export const narrateText = createServerFn({ method: "POST" })
     await assertMember(supabase, data.orgId, userId);
     const { synthesizeSpeech } = await import("./ai.server");
     return { wavBase64: await synthesizeSpeech(data.text, data.voice) };
+  });
+
+export const startSceneClip = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string; prompt: string }) => {
+    const prompt = (d.prompt ?? "").trim().slice(0, 800);
+    if (prompt.length < 10) throw new Error("Describe the scene in a sentence or two.");
+    return { courseId: d.courseId, prompt };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context as any;
+    const { data: course } = await supabase.from("courses").select("org_id").eq("id", data.courseId).single();
+    if (!course) throw new Error("Course not found.");
+    await assertEditor(supabase, course.org_id, userId);
+    const since = new Date(Date.now() - 30 * 864e5).toISOString();
+    const { count } = await supabase.from("audit_events").select("id", { count: "exact", head: true })
+      .eq("org_id", course.org_id).eq("action", "clip.generated").gte("created_at", since);
+    if ((count ?? 0) >= MONTHLY_CLIP_LIMIT) throw new Error(`Your organization reached its limit of ${MONTHLY_CLIP_LIMIT} scene clips in 30 days.`);
+    const { createClipJob } = await import("./ai.server");
+    const job = await createClipJob(data.prompt);
+    await supabase.from("audit_events").insert({ org_id: course.org_id, actor: userId, actor_email: claims?.email ?? null, action: "clip.generated", target: data.courseId });
+    return { jobId: job.id };
+  });
+
+export const checkSceneClip = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string; jobId: string }) => {
+    if (!/^[\w-]+$/.test(d.jobId ?? "")) throw new Error("Invalid job");
+    return d;
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as any;
+    const { data: course } = await supabase.from("courses").select("org_id").eq("id", data.courseId).single();
+    if (!course) throw new Error("Course not found.");
+    await assertEditor(supabase, course.org_id, userId);
+    const { pollClipJob, downloadClip } = await import("./ai.server");
+    const job = await pollClipJob(data.jobId);
+    if (job.status === "failed") {
+      const m = job.error?.code === "moderation_blocked" ? "The clip was blocked by safety filters. Try describing the scene differently." : job.error?.message ?? "Clip generation failed.";
+      return { status: "failed" as const, error: m, path: null };
+    }
+    if (job.status !== "completed") return { status: "pending" as const, progress: job.progress ?? 0, path: null, error: null };
+    const path = `${course.org_id}/clips/${data.jobId}.mp4`;
+    const { data: existing } = await supabase.storage.from("documents").list(`${course.org_id}/clips`, { search: `${data.jobId}.mp4` });
+    if (!existing?.length) {
+      const bytes = await downloadClip(data.jobId);
+      const up = await supabase.storage.from("documents").upload(path, bytes, { contentType: "video/mp4", upsert: true });
+      if (up.error) throw new Error(up.error.message);
+    }
+    return { status: "completed" as const, path, error: null };
   });

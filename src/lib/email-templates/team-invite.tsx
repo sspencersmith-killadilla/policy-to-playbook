@@ -34,7 +34,7 @@ const TeamInviteEmail = ({ orgName, inviterEmail, role, inviteUrl }: TeamInviteP
 
 export const template = {
   component: TeamInviteEmail,
-  subject: (d: Record<string, any>) => `You're invited to join ${d.orgName || 'a team'} on Relay`,
+  subject: (d: Record<string, any>) => `You're invited to join ${d['orgName'] || 'a team'} on Relay`,
   displayName: 'Team invitation',
   previewData: { orgName: 'Acme Corp', inviterEmail: 'jordan@acme.com', role: 'editor', inviteUrl: 'https://relay.civicplexus.org/invite/example' },
 } satisfies TemplateEntry

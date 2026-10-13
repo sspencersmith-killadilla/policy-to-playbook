@@ -14,16 +14,368 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      audit_events: {
+        Row: {
+          action: string
+          actor: string | null
+          actor_email: string | null
+          created_at: string
+          id: string
+          meta: Json | null
+          org_id: string
+          target: string | null
+        }
+        Insert: {
+          action: string
+          actor?: string | null
+          actor_email?: string | null
+          created_at?: string
+          id?: string
+          meta?: Json | null
+          org_id: string
+          target?: string | null
+        }
+        Update: {
+          action?: string
+          actor?: string | null
+          actor_email?: string | null
+          created_at?: string
+          id?: string
+          meta?: Json | null
+          org_id?: string
+          target?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_events_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brand_kits: {
+        Row: {
+          accent_color: string
+          background_color: string
+          body_font: string
+          heading_font: string
+          intro_text: string
+          logo_url: string | null
+          org_id: string
+          outro_text: string
+          primary_color: string
+          text_color: string
+          updated_at: string
+          voice: string
+        }
+        Insert: {
+          accent_color?: string
+          background_color?: string
+          body_font?: string
+          heading_font?: string
+          intro_text?: string
+          logo_url?: string | null
+          org_id: string
+          outro_text?: string
+          primary_color?: string
+          text_color?: string
+          updated_at?: string
+          voice?: string
+        }
+        Update: {
+          accent_color?: string
+          background_color?: string
+          body_font?: string
+          heading_font?: string
+          intro_text?: string
+          logo_url?: string | null
+          org_id?: string
+          outro_text?: string
+          primary_color?: string
+          text_color?: string
+          updated_at?: string
+          voice?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_kits_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_versions: {
+        Row: {
+          content: Json
+          course_id: string
+          created_at: string
+          created_by: string
+          id: string
+          note: string | null
+          org_id: string
+          title: string
+        }
+        Insert: {
+          content: Json
+          course_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          note?: string | null
+          org_id: string
+          title: string
+        }
+        Update: {
+          content?: Json
+          course_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          note?: string | null
+          org_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_versions_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_versions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courses: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          approved_by_email: string | null
+          content: Json
+          created_at: string
+          created_by: string
+          description: string | null
+          document_id: string | null
+          id: string
+          org_id: string
+          pass_score: number
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_email?: string | null
+          content?: Json
+          created_at?: string
+          created_by: string
+          description?: string | null
+          document_id?: string | null
+          id?: string
+          org_id: string
+          pass_score?: number
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_email?: string | null
+          content?: Json
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          document_id?: string | null
+          id?: string
+          org_id?: string
+          pass_score?: number
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courses_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courses_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          created_at: string
+          created_by: string
+          extracted_text: string | null
+          file_path: string | null
+          id: string
+          mime: string | null
+          org_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          extracted_text?: string | null
+          file_path?: string | null
+          id?: string
+          mime?: string | null
+          org_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          extracted_text?: string | null
+          file_path?: string | null
+          id?: string
+          mime?: string | null
+          org_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_invites: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          created_by: string
+          email: string
+          id: string
+          org_id: string
+          role: Database["public"]["Enums"]["org_role"]
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          created_by: string
+          email: string
+          id?: string
+          org_id: string
+          role?: Database["public"]["Enums"]["org_role"]
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          created_by?: string
+          email?: string
+          id?: string
+          org_id?: string
+          role?: Database["public"]["Enums"]["org_role"]
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_invites_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_members: {
+        Row: {
+          created_at: string
+          email: string | null
+          org_id: string
+          role: Database["public"]["Enums"]["org_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          org_id: string
+          role?: Database["public"]["Enums"]["org_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          org_id?: string
+          role?: Database["public"]["Enums"]["org_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_members_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      accept_invite: { Args: { _token: string }; Returns: string }
+      create_organization: { Args: { _name: string }; Returns: string }
+      has_org_role: {
+        Args: {
+          _org: string
+          _roles: Database["public"]["Enums"]["org_role"][]
+          _user: string
+        }
+        Returns: boolean
+      }
+      is_org_member: { Args: { _org: string; _user: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      org_role: "owner" | "editor" | "viewer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +502,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      org_role: ["owner", "editor", "viewer"],
+    },
   },
 } as const

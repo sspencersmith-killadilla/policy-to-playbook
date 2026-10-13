@@ -13,8 +13,14 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as AppActivityRouteImport } from './routes/_app/activity'
+import { Route as AppBrandRouteImport } from './routes/_app/brand'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppNewRouteImport } from './routes/_app/new'
+import { Route as AppTeamRouteImport } from './routes/_app/team'
+import { Route as InviteTokenRouteImport } from './routes/invite.$token'
+import { Route as PresentCourseIdRouteImport } from './routes/present.$courseId'
+import { Route as PrintCourseIdRouteImport } from './routes/print.$courseId'
 import { Route as AppCoursesCourseIdRouteImport } from './routes/_app/courses.$courseId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -36,6 +42,16 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppActivityRoute = AppActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBrandRoute = AppBrandRouteImport.update({
+  id: '/brand',
+  path: '/brand',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -45,6 +61,26 @@ const AppNewRoute = AppNewRouteImport.update({
   id: '/new',
   path: '/new',
   getParentRoute: () => AppRoute,
+} as any)
+const AppTeamRoute = AppTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => AppRoute,
+} as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PresentCourseIdRoute = PresentCourseIdRouteImport.update({
+  id: '/present/$courseId',
+  path: '/present/$courseId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrintCourseIdRoute = PrintCourseIdRouteImport.update({
+  id: '/print/$courseId',
+  path: '/print/$courseId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppCoursesCourseIdRoute = AppCoursesCourseIdRouteImport.update({
   id: '/courses/$courseId',
@@ -56,16 +92,28 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/activity': typeof AppActivityRoute
+  '/brand': typeof AppBrandRoute
   '/dashboard': typeof AppDashboardRoute
   '/new': typeof AppNewRoute
+  '/team': typeof AppTeamRoute
+  '/invite/$token': typeof InviteTokenRoute
+  '/present/$courseId': typeof PresentCourseIdRoute
+  '/print/$courseId': typeof PrintCourseIdRoute
   '/courses/$courseId': typeof AppCoursesCourseIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/activity': typeof AppActivityRoute
+  '/brand': typeof AppBrandRoute
   '/dashboard': typeof AppDashboardRoute
   '/new': typeof AppNewRoute
+  '/team': typeof AppTeamRoute
+  '/invite/$token': typeof InviteTokenRoute
+  '/present/$courseId': typeof PresentCourseIdRoute
+  '/print/$courseId': typeof PrintCourseIdRoute
   '/courses/$courseId': typeof AppCoursesCourseIdRoute
 }
 export interface FileRoutesById {
@@ -74,8 +122,14 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_app/activity': typeof AppActivityRoute
+  '/_app/brand': typeof AppBrandRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/new': typeof AppNewRoute
+  '/_app/team': typeof AppTeamRoute
+  '/invite/$token': typeof InviteTokenRoute
+  '/present/$courseId': typeof PresentCourseIdRoute
+  '/print/$courseId': typeof PrintCourseIdRoute
   '/_app/courses/$courseId': typeof AppCoursesCourseIdRoute
 }
 export interface FileRouteTypes {
@@ -84,16 +138,28 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/activity'
+    | '/brand'
     | '/dashboard'
     | '/new'
+    | '/team'
+    | '/invite/$token'
+    | '/present/$courseId'
+    | '/print/$courseId'
     | '/courses/$courseId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/activity'
+    | '/brand'
     | '/dashboard'
     | '/new'
+    | '/team'
+    | '/invite/$token'
+    | '/present/$courseId'
+    | '/print/$courseId'
     | '/courses/$courseId'
   id:
     | '__root__'
@@ -101,8 +167,14 @@ export interface FileRouteTypes {
     | '/_app'
     | '/auth'
     | '/reset-password'
+    | '/_app/activity'
+    | '/_app/brand'
     | '/_app/dashboard'
     | '/_app/new'
+    | '/_app/team'
+    | '/invite/$token'
+    | '/present/$courseId'
+    | '/print/$courseId'
     | '/_app/courses/$courseId'
   fileRoutesById: FileRoutesById
 }
@@ -111,6 +183,9 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  InviteTokenRoute: typeof InviteTokenRoute
+  PresentCourseIdRoute: typeof PresentCourseIdRoute
+  PrintCourseIdRoute: typeof PrintCourseIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -143,6 +218,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/activity': {
+      id: '/_app/activity'
+      path: '/activity'
+      fullPath: '/activity'
+      preLoaderRoute: typeof AppActivityRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/brand': {
+      id: '/_app/brand'
+      path: '/brand'
+      fullPath: '/brand'
+      preLoaderRoute: typeof AppBrandRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
@@ -157,6 +246,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/team': {
+      id: '/_app/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof AppTeamRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/present/$courseId': {
+      id: '/present/$courseId'
+      path: '/present/$courseId'
+      fullPath: '/present/$courseId'
+      preLoaderRoute: typeof PresentCourseIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/print/$courseId': {
+      id: '/print/$courseId'
+      path: '/print/$courseId'
+      fullPath: '/print/$courseId'
+      preLoaderRoute: typeof PrintCourseIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/courses/$courseId': {
       id: '/_app/courses/$courseId'
       path: '/courses/$courseId'
@@ -168,14 +285,20 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppActivityRoute: typeof AppActivityRoute
+  AppBrandRoute: typeof AppBrandRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppNewRoute: typeof AppNewRoute
+  AppTeamRoute: typeof AppTeamRoute
   AppCoursesCourseIdRoute: typeof AppCoursesCourseIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppActivityRoute: AppActivityRoute,
+  AppBrandRoute: AppBrandRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppNewRoute: AppNewRoute,
+  AppTeamRoute: AppTeamRoute,
   AppCoursesCourseIdRoute: AppCoursesCourseIdRoute,
 }
 
@@ -186,6 +309,9 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  InviteTokenRoute: InviteTokenRoute,
+  PresentCourseIdRoute: PresentCourseIdRoute,
+  PrintCourseIdRoute: PrintCourseIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

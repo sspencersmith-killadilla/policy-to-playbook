@@ -188,7 +188,7 @@ export async function exportVideo(opts: {
   let current: CanvasImageSource = imgs[0]!;
   const draw = () => ctx.drawImage(current, 0, 0, 1280, 720);
   draw();
-  const timer = setInterval(draw, 1000 / 15);
+  const timer = setInterval(draw, 1000 / 30);
   rec.start(1000);
   const total = buffers.reduce((a, b) => a + (b?.duration ?? 3) + 0.8, 0) + clipEls.reduce((a, v) => a + (v?.duration ?? 0), 0);
   let elapsed = 0;

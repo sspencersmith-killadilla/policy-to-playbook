@@ -10,7 +10,7 @@ import { ScaledSlide } from "@/components/SlideView";
 import { CreateOrg } from "../_app";
 
 export const Route = createFileRoute("/_app/dashboard")({
-  validateSearch: (s: Record<string, unknown>) => ({ newOrg: s.newOrg ? 1 : undefined }),
+  validateSearch: (s: Record<string, unknown>): { newOrg?: number } => (s.newOrg ? { newOrg: 1 } : {}),
   head: () => ({
     meta: [
       { title: "Courses — Coursewright" },

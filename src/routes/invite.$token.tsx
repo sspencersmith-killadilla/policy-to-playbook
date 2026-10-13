@@ -29,7 +29,7 @@ function Invite() {
       return;
     }
     supabase.rpc("accept_invite", { _token: token }).then(({ data, error }) => {
-      if (error) return setErr(error.message);
+      if (error) { setErr(error.message); return; }
       localStorage.setItem("cw.currentOrg", data as string);
       window.location.href = "/dashboard";
     });

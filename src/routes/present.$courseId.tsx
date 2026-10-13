@@ -7,7 +7,7 @@ import { DEFAULT_BRAND } from "@/lib/course";
 
 export const Route = createFileRoute("/present/$courseId")({
   ssr: false,
-  validateSearch: (s: Record<string, unknown>) => ({ slide: Math.max(1, Number(s.slide) || 1) }),
+  validateSearch: (s: Record<string, unknown>): { slide?: number } => ({ slide: Math.max(1, Number(s.slide) || 1) }),
   head: () => ({
     meta: [
       { title: "Present — Coursewright" },
@@ -21,7 +21,7 @@ export const Route = createFileRoute("/present/$courseId")({
 
 function Present() {
   const { courseId } = Route.useParams();
-  const { slide: n } = Route.useSearch();
+  const n = Route.useSearch().slide ?? 1;
   const navigate = Route.useNavigate();
   const { data, error } = useCourseView(courseId);
   useBrandFonts(data?.brand ?? DEFAULT_BRAND);

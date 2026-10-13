@@ -84,7 +84,7 @@ export function CreateOrg({ onDone }: { onDone?: () => void }) {
     setBusy(true);
     const { data, error } = await supabase.rpc("create_organization", { _name: name });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     setCurrent(data as string);
     await refresh();
     onDone?.();

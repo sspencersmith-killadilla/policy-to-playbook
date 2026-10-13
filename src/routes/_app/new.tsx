@@ -52,10 +52,10 @@ function NewCourse() {
   async function run(e: React.FormEvent) {
     e.preventDefault();
     if (!current) return;
-    if (!file && !pasted.trim()) return toast.error("Upload a file or paste the policy text.");
-    if (file && file.size > MAX) return toast.error("Files must be under 20MB.");
+    if (!file && !pasted.trim()) { toast.error("Upload a file or paste the policy text."); return; }
+    if (file && file.size > MAX) { toast.error("Files must be under 20MB."); return; }
     const lower = file?.name.toLowerCase() ?? "";
-    if (file && !/\.(pdf|docx|txt|md)$/.test(lower)) return toast.error("Use a PDF, Word (.docx), or text file.");
+    if (file && !/\.(pdf|docx|txt|md)$/.test(lower)) { toast.error("Use a PDF, Word (.docx), or text file."); return; }
     try {
       setStage("Reading document…");
       let text = pasted.trim() || null;

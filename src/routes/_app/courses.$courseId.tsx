@@ -70,10 +70,10 @@ function Editor() {
     const t = setTimeout(async () => {
       const patch: Record<string, unknown> = { title, content, updated_at: new Date().toISOString() };
       if (status === "approved") {
-        patch.status = "draft";
-        patch.approved_by = null;
-        patch.approved_at = null;
-        patch.approved_by_email = null;
+        patch["status"] = "draft";
+        patch["approved_by"] = null;
+        patch["approved_at"] = null;
+        patch["approved_by_email"] = null;
         setStatus("draft");
         toast.info("Edits moved this course back to draft. Approve again before exporting.");
       }
@@ -95,14 +95,14 @@ function Editor() {
     setContent((c) => (c ? fn(c) : c));
   };
   const slides = content.slides;
-  const slide = slides[Math.min(sel, slides.length - 1)];
+  const slide = slides[Math.min(sel, slides.length - 1)]!;
   const setSlide = (s: Slide) => update((c) => ({ ...c, slides: c.slides.map((x) => (x.id === s.id ? s : x)) }));
   const move = (i: number, d: number) =>
     update((c) => {
       const arr = [...c.slides];
       const j = i + d;
       if (j < 0 || j >= arr.length) return c;
-      [arr[i], arr[j]] = [arr[j], arr[i]];
+      [arr[i], arr[j]] = [arr[j]!, arr[i]!];
       setSel(j);
       return { ...c, slides: arr };
     });
@@ -111,9 +111,9 @@ function Editor() {
     const { data: u } = await supabase.auth.getUser();
     const { error } = await supabase
       .from("courses")
-      .update({ status: "approved", approved_by: u.user!.id, approved_by_email: u.user!.email, approved_at: new Date().toISOString() })
+      .update({ status: "approved", approved_by: u.user!.id, approved_by_email: u.user!.email ?? null, approved_at: new Date().toISOString() })
       .eq("id", courseId);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     await supabase.from("course_versions").insert({ course_id: courseId, org_id: current!.org_id, title, content: content as any, note: "Approved", created_by: u.user!.id });
     await logAudit(current!.org_id, "course.approved", courseId);
     setStatus("approved");
@@ -297,7 +297,7 @@ function Versions({ courseId, onRestore, disabled, currentTitle, currentContent 
   async function snapshot() {
     const { data: u } = await supabase.auth.getUser();
     const { error } = await supabase.from("course_versions").insert({ course_id: courseId, org_id: current!.org_id, title: currentTitle, content: currentContent as any, note: "Manual save", created_by: u.user!.id });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     qc.invalidateQueries({ queryKey: ["versions", courseId] });
     toast.success("Version saved");
   }
@@ -335,8 +335,8 @@ function ExportMenu({ courseId, title, content, approved, passScore }: { courseI
   };
 
   async function run(kind: "pptx" | "scorm" | "video" | "pdf") {
-    if (!approved) return toast.error("Approve the course before exporting.");
-    if (kind === "pdf") return window.open(`/print/${courseId}`, "_blank");
+    if (!approved) { toast.error("Approve the course before exporting."); return; }
+    if (kind === "pdf") { window.open(`/print/${courseId}`, "_blank"); return; }
     abort.current = new AbortController();
     try {
       if (kind === "pptx") {

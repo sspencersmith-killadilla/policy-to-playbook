@@ -44,7 +44,7 @@ function Team() {
     e.preventDefault();
     const { data: u } = await supabase.auth.getUser();
     const { data, error } = await supabase.from("org_invites").insert({ org_id: current!.org_id, email: email.trim().toLowerCase(), role, created_by: u.user!.id }).select("token").single();
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     await navigator.clipboard.writeText(link(data.token)).catch(() => {});
     await logAudit(current!.org_id, "member.invited", email);
     toast.success("Invite link copied. Send it to your colleague.");
@@ -53,12 +53,12 @@ function Team() {
   }
   async function changeRole(userId: string, r: Role) {
     const { error } = await supabase.from("org_members").update({ role: r }).eq("org_id", current!.org_id).eq("user_id", userId);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     qc.invalidateQueries({ queryKey: ["members"] });
   }
   async function remove(userId: string) {
     const { error } = await supabase.from("org_members").delete().eq("org_id", current!.org_id).eq("user_id", userId);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     await logAudit(current!.org_id, "member.removed", userId);
     qc.invalidateQueries({ queryKey: ["members"] });
   }

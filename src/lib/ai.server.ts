@@ -9,7 +9,7 @@ export class AiError extends Error {
 }
 
 function key() {
-  const k = process.env.LOVABLE_API_KEY;
+  const k = process.env["LOVABLE_API_KEY"];
   if (!k) throw new AiError("AI is not configured.", 401);
   return k;
 }

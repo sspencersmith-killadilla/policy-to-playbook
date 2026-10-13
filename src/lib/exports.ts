@@ -75,7 +75,7 @@ export async function exportScorm(title: string, content: CourseContent, brand: 
   const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
   const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
-  images.forEach((img, i) => zip.file(`slides/${i + 1}.jpg`, img.split(",")[1], { base64: true }));
+  images.forEach((img, i) => zip.file(`slides/${i + 1}.jpg`, img.split(",")[1] ?? "", { base64: true }));
   const files = images.map((_, i) => `<file href="slides/${i + 1}.jpg"/>`).join("");
   zip.file(
     "imsmanifest.xml",
@@ -171,7 +171,7 @@ export async function exportVideo(opts: {
   rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
   const stopped = new Promise<void>((r) => (rec.onstop = () => r()));
 
-  let current = imgs[0];
+  let current = imgs[0]!;
   const draw = () => ctx.drawImage(current, 0, 0, 1280, 720);
   draw();
   const timer = setInterval(draw, 1000 / 15);
@@ -181,7 +181,7 @@ export async function exportVideo(opts: {
   try {
     for (let i = 0; i < slides.length; i++) {
       if (signal.aborted) throw new Error("Cancelled");
-      current = imgs[i];
+      current = imgs[i]!;
       draw();
       const buf = buffers[i];
       const dur = (buf?.duration ?? 3) + 0.8;

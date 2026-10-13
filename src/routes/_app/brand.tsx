@@ -39,14 +39,14 @@ function BrandPage() {
 
   function onLogo(f?: File) {
     if (!f) return;
-    if (f.size > 400 * 1024) return toast.error("Logo must be under 400KB.");
+    if (f.size > 400 * 1024) { toast.error("Logo must be under 400KB."); return; }
     const r = new FileReader();
     r.onload = () => set({ logo_url: r.result as string });
     r.readAsDataURL(f);
   }
   async function save() {
     const { error } = await supabase.from("brand_kits").update({ ...b, updated_at: new Date().toISOString() }).eq("org_id", current!.org_id);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     await logAudit(current!.org_id, "brand.updated");
     qc.invalidateQueries({ queryKey: ["brand", current!.org_id] });
     toast.success("Brand kit saved");

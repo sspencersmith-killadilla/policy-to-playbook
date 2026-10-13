@@ -15,7 +15,7 @@ type Ctx = {
 };
 
 const OrgContext = createContext<Ctx | null>(null);
-const KEY = "refrain.currentOrg";
+const KEY = "relay.currentOrg";
 
 export function OrgProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const qc = useQueryClient();

@@ -12,9 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 export const Route = createFileRoute("/_app/team")({
   head: () => ({
     meta: [
-      { title: "Team — Refrain" },
+      { title: "Team — Relay" },
       { name: "description", content: "Invite colleagues and manage roles." },
-      { property: "og:title", content: "Team — Refrain" },
+      { property: "og:title", content: "Team — Relay" },
       { property: "og:description", content: "Invite colleagues and manage roles." },
     ],
   }),

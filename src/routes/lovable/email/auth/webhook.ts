@@ -9,7 +9,7 @@ import { EmailChangeEmail } from '@/lib/email-templates/email-change'
 import { ReauthenticationEmail } from '@/lib/email-templates/reauthentication'
 
 // Configuration
-const SITE_NAME = "Policy To Playbook"
+const SITE_NAME = "Relay"
 const SENDER_DOMAIN = "notify.relay.civicplexus.org"
 const ROOT_DOMAIN = "relay.civicplexus.org"
 const FROM_DOMAIN = "notify.relay.civicplexus.org"

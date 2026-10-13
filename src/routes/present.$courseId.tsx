@@ -7,7 +7,7 @@ import { DEFAULT_BRAND } from "@/lib/course";
 
 export const Route = createFileRoute("/present/$courseId")({
   ssr: false,
-  validateSearch: (s: Record<string, unknown>): { slide?: number } => ({ slide: Math.max(1, Number(s.slide) || 1) }),
+  validateSearch: (s: Record<string, unknown>): { slide?: number } => ({ slide: Math.max(1, Number(s["slide"]) || 1) }),
   head: () => ({
     meta: [
       { title: "Present — Coursewright" },
@@ -50,8 +50,8 @@ function Present() {
   return (
     <div
       className="flex h-screen flex-col bg-ink"
-      onTouchStart={(e) => (touch.current = e.touches[0].clientX)}
-      onTouchEnd={(e) => { if (touch.current == null) return; const dx = e.changedTouches[0].clientX - touch.current; if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1); touch.current = null; }}
+      onTouchStart={(e) => (touch.current = e.touches[0]!.clientX)}
+      onTouchEnd={(e) => { if (touch.current == null) return; const dx = e.changedTouches[0]!.clientX - touch.current; if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1); touch.current = null; }}
     >
       <div className="relative min-h-0 flex-1">
         {s && <ScaledSlide slide={s} brand={data.brand} index={i} total={total} className="absolute inset-0" />}

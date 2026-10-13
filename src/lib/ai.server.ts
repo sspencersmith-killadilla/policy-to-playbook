@@ -112,3 +112,42 @@ export function toBase64(bytes: Uint8Array) {
   for (let i = 0; i < bytes.length; i += chunk) s += String.fromCharCode(...bytes.subarray(i, i + chunk));
   return btoa(s);
 }
+
+export const VIDEO_MODEL = "google/gemini-omni-1.1-flash";
+
+export type VideoJob = { id: string; status: string; progress?: number; error?: { code: string; message: string } };
+
+async function videoJson(res: Response): Promise<VideoJob> {
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { message?: string } | null;
+    console.error(`Video gateway error [${res.status}]`, body);
+    let msg = body?.message ?? `Video request failed (${res.status})`;
+    if (res.status === 429) msg = "A clip is already generating or the limit was reached. Wait for it to finish, then try again.";
+    throw new AiError(msg, res.status);
+  }
+  return (await res.json()) as VideoJob;
+}
+
+export async function createClipJob(prompt: string) {
+  return videoJson(
+    await fetch(`${GATEWAY}/videos`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key()}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: VIDEO_MODEL,
+        input: `${prompt}. Realistic, professional workplace training footage with natural lighting, in a single continuous shot, no scene cuts. Consider micro-detail, expression and timing. Audio: soft ambient room tone and a light, calm background music bed. No dialogue. No captions, no on-screen text.`,
+        response_format: { type: "video", resolution: "720p", duration: "6s", aspect_ratio: "16:9" },
+      }),
+    }),
+  );
+}
+
+export async function pollClipJob(id: string) {
+  return videoJson(await fetch(`${GATEWAY}/videos/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${key()}` } }));
+}
+
+export async function downloadClip(id: string) {
+  const res = await fetch(`${GATEWAY}/videos/${encodeURIComponent(id)}/content`, { headers: { Authorization: `Bearer ${key()}` } });
+  if (!res.ok) throw new AiError(`Could not download the clip (${res.status})`, res.status);
+  return new Uint8Array(await res.arrayBuffer());
+}

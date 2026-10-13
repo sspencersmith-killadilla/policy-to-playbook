@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Copy, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
+import { sendInviteEmail } from "@/lib/invites.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -43,11 +44,16 @@ function Team() {
   async function invite(e: React.FormEvent) {
     e.preventDefault();
     const { data: u } = await supabase.auth.getUser();
-    const { data, error } = await supabase.from("org_invites").insert({ org_id: current!.org_id, email: email.trim().toLowerCase(), role, created_by: u.user!.id }).select("token").single();
+    const { data, error } = await supabase.from("org_invites").insert({ org_id: current!.org_id, email: email.trim().toLowerCase(), role, created_by: u.user!.id }).select("id, token").single();
     if (error) { toast.error(error.message); return; }
-    await navigator.clipboard.writeText(link(data.token)).catch(() => {});
     await logAudit(current!.org_id, "member.invited", email);
-    toast.success("Invite link copied. Send it to your colleague.");
+    const sent = await sendInviteEmail({ data: { inviteId: data.id } }).catch(() => ({ sent: false as const }));
+    if (sent.sent) {
+      toast.success(`Invitation emailed to ${email.trim()}.`);
+    } else {
+      await navigator.clipboard.writeText(link(data.token)).catch(() => {});
+      toast.success("Invite created, but the email couldn't be sent yet. The link was copied — send it to your colleague.");
+    }
     setEmail("");
     qc.invalidateQueries({ queryKey: ["invites"] });
   }
@@ -101,6 +107,7 @@ function Team() {
               <li key={i.id} className="flex items-center justify-between p-4">
                 <span>{i.email} <span className="text-sm capitalize text-muted-foreground">· {i.role}</span></span>
                 <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" onClick={async () => { const r = await sendInviteEmail({ data: { inviteId: i.id } }).catch(() => ({ sent: false as const })); toast[r.sent ? "success" : "error"](r.sent ? "Invitation re-sent" : "Couldn't send the email yet"); }}>Resend</Button>
                   <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(link(i.token)); toast.success("Link copied"); }}><Copy /> Copy link</Button>
                   <Button size="icon" variant="ghost" aria-label="Cancel invite" onClick={async () => { await supabase.from("org_invites").delete().eq("id", i.id); qc.invalidateQueries({ queryKey: ["invites"] }); }}><Trash2 /></Button>
                 </div>

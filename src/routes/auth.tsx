@@ -17,16 +17,16 @@ export const Route = createFileRoute("/auth")({
   }),
   head: () => ({
     meta: [
-      { title: "Sign in — Coursewright" },
-      { name: "description", content: "Sign in or create your Coursewright account." },
-      { property: "og:title", content: "Sign in — Coursewright" },
-      { property: "og:description", content: "Sign in or create your Coursewright account." },
+      { title: "Sign in — Refrain" },
+      { name: "description", content: "Sign in or create your Refrain account." },
+      { property: "og:title", content: "Sign in — Refrain" },
+      { property: "og:description", content: "Sign in or create your Refrain account." },
     ],
   }),
   component: AuthPage,
 });
 
-const NEXT_KEY = "cw.next";
+const NEXT_KEY = "refrain.next";
 
 function AuthPage() {
   const { mode, next } = Route.useSearch();
@@ -82,7 +82,7 @@ function AuthPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <Link to="/" className="font-display text-2xl font-semibold">Coursewright</Link>
+        <Link to="/" className="font-display text-2xl font-semibold">Refrain</Link>
         <h1 className="mt-8 text-3xl font-semibold">{isSignup ? "Create your account" : "Welcome back"}</h1>
         <Button variant="outline" className="mt-6 w-full" onClick={google}>Continue with Google</Button>
         <div className="my-5 text-center text-xs uppercase tracking-widest text-muted-foreground">or</div>

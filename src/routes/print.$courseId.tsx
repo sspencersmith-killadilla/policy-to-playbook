@@ -8,9 +8,9 @@ export const Route = createFileRoute("/print/$courseId")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Print handout — Coursewright" },
+      { title: "Print handout — Refrain" },
       { name: "description", content: "Printable PDF handout of your course." },
-      { property: "og:title", content: "Print handout — Coursewright" },
+      { property: "og:title", content: "Print handout — Refrain" },
       { property: "og:description", content: "Printable PDF handout." },
     ],
   }),

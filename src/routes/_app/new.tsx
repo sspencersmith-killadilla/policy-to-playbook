@@ -15,9 +15,9 @@ import { Textarea } from "@/components/ui/textarea";
 export const Route = createFileRoute("/_app/new")({
   head: () => ({
     meta: [
-      { title: "New course — Coursewright" },
+      { title: "New course — Refrain" },
       { name: "description", content: "Upload a policy document to generate a training course." },
-      { property: "og:title", content: "New course — Coursewright" },
+      { property: "og:title", content: "New course — Refrain" },
       { property: "og:description", content: "Upload a policy document to generate a training course." },
     ],
   }),

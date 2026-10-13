@@ -6,9 +6,9 @@ import hero from "@/assets/hero.jpg";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Coursewright — Turn any policy into branded training" },
+      { title: "Refrain — Turn any policy into branded training" },
       { name: "description", content: "Upload a code of conduct or SOP. Get an editable, branded training course with quiz, then export slides, narrated video or SCORM." },
-      { property: "og:title", content: "Coursewright — Turn any policy into branded training" },
+      { property: "og:title", content: "Refrain — Turn any policy into branded training" },
       { property: "og:description", content: "Policy in, training out. Slides, narrated video and SCORM exports for your LMS." },
     ],
   }),
@@ -26,7 +26,7 @@ function Index() {
   return (
     <div className="min-h-screen">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <span className="font-display text-2xl font-semibold">Coursewright</span>
+        <span className="font-display text-2xl font-semibold">Refrain</span>
         <div className="flex gap-2">
           <Button variant="ghost" asChild><Link to="/auth">Sign in</Link></Button>
           <Button asChild><Link to="/auth" search={{ mode: "signup" }}>Get started</Link></Button>
@@ -38,7 +38,7 @@ function Index() {
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-highlight">Policy in. Training out.</p>
             <h1 className="mt-4 text-5xl font-semibold leading-[1.05] md:text-6xl">Your code of conduct, as a course people actually finish.</h1>
             <p className="mt-6 max-w-lg text-lg text-muted-foreground">
-              Upload a policy or SOP. Coursewright drafts a branded training module with scenarios and a quiz, you review and approve it, then export it anywhere.
+              Upload a policy or SOP. Refrain drafts a branded training module with scenarios and a quiz, you review and approve it, then export it anywhere.
             </p>
             <div className="mt-8 flex gap-3">
               <Button size="lg" asChild><Link to="/auth" search={{ mode: "signup" }}>Build your first course <ArrowRight /></Link></Button>
@@ -65,7 +65,7 @@ function Index() {
           </p>
         </section>
       </main>
-      <footer className="border-t py-8 text-center text-sm text-muted-foreground">© {new Date().getFullYear()} Coursewright</footer>
+      <footer className="border-t py-8 text-center text-sm text-muted-foreground">© {new Date().getFullYear()} Refrain</footer>
     </div>
   );
 }

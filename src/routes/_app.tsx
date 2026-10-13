@@ -44,7 +44,7 @@ function Shell({ email }: { email: string }) {
   return (
     <div className="flex min-h-screen">
       <aside className="no-print sticky top-0 flex h-screen w-60 flex-col border-r bg-sidebar p-4">
-        <Link to="/dashboard" className="font-display px-2 text-xl font-semibold">Coursewright</Link>
+        <Link to="/dashboard" className="font-display px-2 text-xl font-semibold">Refrain</Link>
         <div className="mt-6">
           <Select value={current.org_id} onValueChange={(v) => (v === "__new" ? (window.location.href = "/dashboard?newOrg=1") : setCurrent(v))}>
             <SelectTrigger className="bg-card"><SelectValue /></SelectTrigger>

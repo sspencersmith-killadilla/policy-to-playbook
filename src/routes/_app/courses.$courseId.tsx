@@ -7,7 +7,7 @@ import { ArrowDown, ArrowUp, Copy, Trash2, Plus, Sparkles, Play, Download, Check
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
 import { canEdit, emptySlide, LAYOUTS, newId, normalizeContent, type CourseContent, type Slide, type QuizQuestion } from "@/lib/course";
-import { regenerateSlide, narrateText } from "@/lib/ai.functions";
+import { regenerateSlide, narrateText, startSceneClip, checkSceneClip } from "@/lib/ai.functions";
 import { exportPptx, exportScorm, exportVideo, renderSlideImages } from "@/lib/exports";
 import { ScaledSlide, SlideView, useBrandFonts } from "@/components/SlideView";
 import { Button } from "@/components/ui/button";
@@ -239,6 +239,7 @@ function SlideForm({ slide, onChange, disabled, courseId }: { slide: Slide; onCh
         </Button>
       </Field>
       <Field label="Policy source"><Input disabled={disabled} value={slide.source} onChange={(e) => set({ source: e.target.value })} /></Field>
+      <SceneClip slide={slide} courseId={courseId} disabled={disabled} onChange={(p) => set(p)} />
       {!disabled && (
         <div className="rounded-md border bg-card p-3">
           <Label>Rewrite with AI</Label>
@@ -349,6 +350,7 @@ function ExportMenu({ courseId, title, content, approved, passScore }: { courseI
         else
           await exportVideo({
             title, slides: content.slides, images: imgs, signal: abort.current.signal,
+            clips: await Promise.all(content.slides.map(async (s) => s.clip_path ? (await supabase.storage.from("documents").createSignedUrl(s.clip_path, 3600)).data?.signedUrl ?? null : null)),
             narrate: async (text) => (await narrate({ data: { orgId: current!.org_id, text, voice: brand.voice } })).wavBase64,
             onProgress: (msg, pct) => setJob({ msg, pct }),
           });
@@ -389,5 +391,63 @@ function ExportMenu({ courseId, title, content, approved, passScore }: { courseI
         </div>
       )}
     </>
+  );
+}
+
+function SceneClip({ slide, courseId, disabled, onChange }: { slide: Slide; courseId: string; disabled: boolean; onChange: (p: Partial<Slide>) => void }) {
+  const start = useServerFn(startSceneClip);
+  const check = useServerFn(checkSceneClip);
+  const [prompt, setPrompt] = useState(slide.clip_prompt ?? (slide.layout === "scenario" ? slide.body ?? "" : ""));
+  const [busy, setBusy] = useState<string | null>(null);
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    setUrl(null);
+    if (!slide.clip_path) return;
+    supabase.storage.from("documents").createSignedUrl(slide.clip_path, 3600).then(({ data }) => setUrl(data?.signedUrl ?? null));
+  }, [slide.clip_path]);
+
+  async function generate() {
+    if (!confirm("Scene clips cost noticeably more AI credits than text. Generate a 6-second clip?")) return;
+    setBusy("Starting…");
+    try {
+      const { jobId } = await start({ data: { courseId, prompt } });
+      for (let i = 0; i < 60; i++) {
+        await new Promise((r) => setTimeout(r, 7000));
+        const r = await check({ data: { courseId, jobId } });
+        if (r.status === "failed") throw new Error(r.error ?? "Clip failed");
+        if (r.status === "completed") {
+          onChange({ clip_path: r.path, clip_prompt: prompt });
+          toast.success("Scene clip added. It plays before this slide in the narrated video.");
+          return;
+        }
+        setBusy(`Generating clip… ${Math.round(r.progress ?? 0)}%`);
+      }
+      throw new Error("The clip is taking too long. Try again later.");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (disabled && !slide.clip_path) return null;
+  return (
+    <div className="rounded-md border bg-card p-3">
+      <Label>AI scene clip (video only)</Label>
+      <p className="mt-1 text-xs text-muted-foreground">A short generated scene that plays right before this slide in the narrated video.</p>
+      {url && <video src={url} controls className="mt-2 w-full rounded" />}
+      {!disabled && (
+        <>
+          <Textarea className="mt-2" rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="e.g. A warehouse worker notices a spill near a forklift lane and places a caution sign" />
+          <div className="mt-2 flex gap-2">
+            <Button size="sm" onClick={generate} disabled={!!busy || prompt.trim().length < 10}>
+              {busy ? <><Loader2 className="animate-spin" /> {busy}</> : <><Sparkles /> {slide.clip_path ? "Replace clip" : "Generate clip"}</>}
+            </Button>
+            {slide.clip_path && !busy && <Button size="sm" variant="ghost" onClick={() => onChange({ clip_path: null })}>Remove</Button>}
+          </div>
+        </>
+      )}
+    </div>
   );
 }

@@ -1,3 +1,4 @@
+import mark from "@/assets/refrain-mark.png";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -82,7 +83,7 @@ function AuthPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <Link to="/" className="font-display text-2xl font-semibold">Refrain</Link>
+        <Link to="/" className="flex items-center gap-2 font-display text-2xl font-bold text-primary"><img src={mark} alt="" width={32} height={32} /> Refrain</Link>
         <h1 className="mt-8 text-3xl font-semibold">{isSignup ? "Create your account" : "Welcome back"}</h1>
         <Button variant="outline" className="mt-6 w-full" onClick={google}>Continue with Google</Button>
         <div className="my-5 text-center text-xs uppercase tracking-widest text-muted-foreground">or</div>

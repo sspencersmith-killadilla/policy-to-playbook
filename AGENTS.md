@@ -15,3 +15,6 @@
 - AI calls (Responses API with strict JSON schema, TTS) live in src/lib/ai.server.ts and are exposed only through authenticated server functions in src/lib/ai.functions.ts. Why: keep keys server-side and verify org role.
 - Exports (PPTX, SCORM, PDF print, narrated video via MediaRecorder) run in the browser in src/lib/exports.ts. Why: the server runtime cannot run FFmpeg or long jobs.
 - Exports require course status "approved"; any edit resets to draft. Why: human review before distribution.
+
+- Email: auth emails go through src/routes/lovable/email/auth/webhook.ts; app emails (e.g. team invites) are sent only from server functions via sendTemplateEmail, templates registered in src/lib/email-templates/registry.ts. Why: managed sending, no client-side send path.
+- src/start.ts middleware must pass /lovable/* through untouched. Why: signed email webhooks must not hit app redirects/error pages.

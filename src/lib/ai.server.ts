@@ -151,3 +151,46 @@ export async function downloadClip(id: string) {
   if (!res.ok) throw new AiError(`Could not download the clip (${res.status})`, res.status);
   return new Uint8Array(await res.arrayBuffer());
 }
+
+export const IMAGE_MODEL = "openai/gpt-image-2.5-sunburst";
+
+/** Generates one 3:2 illustration and returns the finished PNG bytes. */
+export async function generateIllustration(prompt: string): Promise<Uint8Array> {
+  const res = await fetch(`${GATEWAY}/images/generations`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key()}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: IMAGE_MODEL, prompt, size: "1536x1024", quality: "medium", stream: true }),
+  });
+  if (!res.ok || !res.body) await failure(res);
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  let b64: string | null = null;
+  let err: AiError | null = null;
+  const handle = (line: string) => {
+    if (!line.startsWith("data:")) return;
+    const data = line.slice(5).trim();
+    if (!data || data === "[DONE]") return;
+    let evt: any;
+    try { evt = JSON.parse(data); } catch { return; }
+    if (evt.type === "image_generation.completed" && evt.b64_json) b64 = evt.b64_json;
+    else if (evt.type === "error" || evt.error) {
+      const code = evt.error?.code ?? "";
+      err = new AiError(
+        /content_policy|moderation/.test(code) ? "The picture was blocked by safety filters. Try describing it differently." : evt.error?.message ?? "The picture could not be made.",
+        /content_policy|moderation/.test(code) ? 400 : 502,
+      );
+    }
+  };
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf("\n")) >= 0) { handle(buf.slice(0, idx).trim()); buf = buf.slice(idx + 1); }
+  }
+  handle(buf.trim());
+  if (err) throw err;
+  if (!b64) throw new AiError("The picture could not be made. Please try again.", 502);
+  return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+}

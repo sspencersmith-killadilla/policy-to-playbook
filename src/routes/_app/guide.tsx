@@ -141,6 +141,16 @@ function Guide() {
             </ul></li>
         </ul>
 
+        <H id="explainer">Explainer video (not a slideshow)</H>
+        <p>Click <b>Explainer video</b> at the top of the course editor. It makes a short video that teaches the policy like a documentary: a hook, why it matters, the key ideas, a real-life scenario and a recap. It uses moving diagrams, Do / Don't lists, step-by-step paths, quotes from the policy, big facts and illustrations, all in your brand colors.</p>
+        <ol>
+          <li>Choose a <b>Length</b> (about 2, 4 or 6 minutes) and <b>Tone</b>. Leave <b>AI illustrations</b> on for drawn pictures (each uses AI credits), or turn it off for shapes and diagrams only. If slides have AI video clips, <b>Use my AI video clips</b> lets them play behind scenario scenes.</li>
+          <li>Click <b>Write script</b>. Read every scene. You can change the narration, the on-screen words, the scene type, the order, or delete and add scenes. Changes save on their own and don't undo approval.</li>
+          <li>For picture scenes, press <b>Draw picture</b> to preview it, or let Relay draw any missing ones when you build.</li>
+          <li>Once the course is approved, click <b>Download MP4</b> (captions are shown on screen) or <b>SCORM package with quiz</b> (captions can be turned on in the player, and learners take the quiz after watching).</li>
+        </ol>
+        <Tip>Writing a script counts toward the 30 AI generations every 30 days. An explainer can use up to 15 illustrations, and each organization can draw up to 60 every 30 days.</Tip>
+
         <H id="versions">9. Versions and activity</H>
         <ul>
           <li><b>Versions</b> – in the course editor you can see snapshots (AI draft, approvals) and <b>Restore</b> any of them. Click <b>Save a version now</b> before big changes.</li>

@@ -151,7 +151,7 @@ function Editor() {
                 <span className="block truncate px-1 py-0.5 text-xs text-muted-foreground">{i + 1}. {s.title}</span>
               </button>
             ))}
-            {editable && <BulkClipPrompts courseId={courseId} slides={slides} onDone={(m) => update((c) => ({ ...c, slides: c.slides.map((x) => (m[x.id] ? { ...x, clip_prompt: m[x.id] } : x)) }))} />}
+            {editable && <BulkClipPrompts courseId={courseId} slides={slides} onDone={(m) => update((c) => ({ ...c, slides: c.slides.map((x) => (m[x.id] ? { ...x, clip_prompt: m[x.id] ?? null } : x)) }))} />}
             {editable && (
               <Button variant="outline" size="sm" className="w-full" onClick={() => { update((c) => ({ ...c, slides: [...c.slides.slice(0, sel + 1), emptySlide(), ...c.slides.slice(sel + 1)] })); setSel(sel + 1); }}>
                 <Plus /> Add slide

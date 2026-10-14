@@ -198,6 +198,35 @@ export async function exportVideo(opts: Parameters<typeof buildNarratedVideo>[0]
   download(r.blob, `${safeName(opts.title)}.${r.ext}`);
 }
 
+/** Voices every slide, 3 at a time; a failure names the slide that broke. */
+async function narrateSlides(
+  slides: Slide[],
+  narrate: (text: string) => Promise<string>,
+  decode: (b: ArrayBuffer) => Promise<AudioBuffer>,
+  onProgress: (msg: string, pct: number) => void,
+  signal: AbortSignal,
+): Promise<(AudioBuffer | null)[]> {
+  const { pool } = await import("./narration");
+  let done = 0;
+  onProgress(`Making voiceover 1 of ${slides.length}…`, 0);
+  return pool(slides.length, 3, async (i) => {
+    if (signal.aborted) throw new Error("Cancelled");
+    const text = slides[i]?.notes?.trim();
+    let buf: AudioBuffer | null = null;
+    if (text) {
+      try {
+        buf = await decode(b64ToArrayBuffer(await narrate(text)));
+      } catch (e: any) {
+        if (signal.aborted) throw new Error("Cancelled");
+        throw new Error(`Voiceover for slide ${i + 1} failed: ${e?.message ?? "unknown error"}`);
+      }
+    }
+    done++;
+    onProgress(`Making voiceover ${Math.min(done + 1, slides.length)} of ${slides.length}…`, (done / slides.length) * 40);
+    return buf;
+  });
+}
+
 export async function recordNarratedVideo(opts: {
   slides: Slide[];
   images: string[];
@@ -208,13 +237,7 @@ export async function recordNarratedVideo(opts: {
 }): Promise<RecordedVideo> {
   const { slides, images, narrate, onProgress, signal } = opts;
   const audioCtx = new AudioContext();
-  const buffers: (AudioBuffer | null)[] = [];
-  for (let i = 0; i < slides.length; i++) {
-    if (signal.aborted) throw new Error("Cancelled");
-    onProgress(`Recording voiceover ${i + 1} of ${slides.length}…`, (i / slides.length) * 40);
-    const text = slides[i]?.notes?.trim();
-    buffers.push(text ? await audioCtx.decodeAudioData(b64ToArrayBuffer(await narrate(text))) : null);
-  }
+  const buffers = await narrateSlides(slides, narrate, (b) => audioCtx.decodeAudioData(b), onProgress, signal);
   const clipEls: (HTMLVideoElement | null)[] = await Promise.all(
     (opts.clips ?? []).map((src) => {
       if (!src) return Promise.resolve(null);
@@ -324,13 +347,8 @@ async function encodeNarratedVideo(opts: EncodeOpts & { width: number; height: n
   const check = () => { if (signal.aborted) throw new Error("Cancelled"); };
 
   // 1. Narration audio
-  const voice: (AudioBuffer | null)[] = [];
-  for (let i = 0; i < slides.length; i++) {
-    check();
-    onProgress(`Recording voiceover ${i + 1} of ${slides.length}…`, (i / slides.length) * 40);
-    const text = slides[i]?.notes?.trim();
-    voice.push(text ? await decodeCtx.decodeAudioData(b64ToArrayBuffer(await narrate(text))) : null);
-  }
+  const voice = await narrateSlides(slides, narrate, (b) => decodeCtx.decodeAudioData(b), onProgress, signal);
+  onProgress("Building video…", 40);
 
   // 2. Scene clips (video element for frames, decoded audio track)
   const clips = await Promise.all((opts.clips ?? []).map(async (src) => {

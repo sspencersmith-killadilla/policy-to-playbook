@@ -32,7 +32,7 @@ export const SignupEmail = ({
     <Preview>Confirm your email for {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Heading style={h1}>Confirm your email</Heading>
+        <Heading style={h1}>One more step: confirm your email</Heading>
         <Text style={text}>
           Thanks for signing up for{' '}
           <Link href={siteUrl} style={link}>
@@ -45,11 +45,16 @@ export const SignupEmail = ({
           <Link href={`mailto:${recipient}`} style={link}>
             {recipient}
           </Link>
-          ) by clicking the button below:
+          ). You won't be able to sign in to Relay until you do. Click the button below — you'll see an "Email confirmed" page and be signed in.
         </Text>
         <Button className="dm-btn" style={button} href={confirmationUrl}>
-          Verify Email
+          Confirm my email
         </Button>
+        <Text style={small}>
+          Button not working? Copy and paste this link into your browser:
+          <br />
+          <Link href={confirmationUrl} style={urlLink}>{confirmationUrl}</Link>
+        </Text>
         <Text style={footer}>
           If you didn't create an account, you can safely ignore this email.
         </Text>
@@ -84,6 +89,8 @@ const button = {
   padding: '12px 20px',
   textDecoration: 'none',
 }
+const small = { fontSize: '12px', color: '#55575d', lineHeight: '1.5', margin: '25px 0 0' }
+const urlLink = { color: '#1d4f63', wordBreak: 'break-all' as const }
 const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
 // Rendered as a text child, which React may HTML-escape: keep this CSS free of >, &, and quotes.
 const darkModeCss = `

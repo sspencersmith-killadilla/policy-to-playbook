@@ -25,7 +25,7 @@ const TeamInviteEmail = ({ orgName, inviterEmail, role, inviteUrl }: TeamInviteP
           Accept invitation
         </Button>
         <Text style={footer}>
-          You'll be asked to sign in or create an account with this email address. If you weren't expecting this, you can safely ignore it.
+          New to Relay? You'll create an account with this email address, then we'll send a second email asking you to confirm it — click the button in that email to finish joining. If you weren't expecting this, you can safely ignore it.
         </Text>
       </Container>
     </Body>

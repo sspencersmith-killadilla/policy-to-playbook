@@ -180,8 +180,30 @@ export const narrateText = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as any;
     await assertMember(supabase, data.orgId, userId);
-    const { synthesizeSpeech } = await import("./ai.server");
-    return { wavBase64: await synthesizeSpeech(data.text, data.voice) };
+    const { synthesizeSpeech, toBase64 } = await import("./ai.server");
+    const { narrationKey, isRetryableStatus } = await import("./narration");
+    const path = `${data.orgId}/narration/${await narrationKey(data.voice, data.text)}.wav`;
+
+    // Reuse a saved voiceover when the script and voice are unchanged.
+    const cached = await supabase.storage.from("documents").download(path);
+    if (!cached.error && cached.data && cached.data.size > 0) {
+      return { wavBase64: toBase64(new Uint8Array(await cached.data.arrayBuffer())), cached: true };
+    }
+
+    let wavBase64 = "";
+    for (let attempt = 0; ; attempt++) {
+      try {
+        wavBase64 = await synthesizeSpeech(data.text, data.voice);
+        break;
+      } catch (e: any) {
+        if (attempt >= 3 || !isRetryableStatus(e?.status ?? 0)) throw e;
+        await new Promise((r) => setTimeout(r, 1500 * 2 ** attempt + Math.random() * 500));
+      }
+    }
+    const bin = Uint8Array.from(atob(wavBase64), (c) => c.charCodeAt(0));
+    const up = await supabase.storage.from("documents").upload(path, bin, { contentType: "audio/wav", upsert: true });
+    if (up.error) console.error("Could not save voiceover:", up.error.message);
+    return { wavBase64, cached: false };
   });
 
 export const startSceneClip = createServerFn({ method: "POST" })

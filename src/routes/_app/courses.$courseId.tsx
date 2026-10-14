@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
 import { canEdit, emptySlide, LAYOUTS, newId, normalizeContent, type CourseContent, type Slide, type QuizQuestion } from "@/lib/course";
 import { regenerateSlide, narrateText, startSceneClip, checkSceneClip, suggestClipPrompts } from "@/lib/ai.functions";
-import { exportPptx, exportScorm, exportVideo, renderSlideImages } from "@/lib/exports";
+import { exportPptx, exportScorm, exportVideo, recordNarratedVideo, renderSlideImages } from "@/lib/exports";
 import { ScaledSlide, SlideView, useBrandFonts } from "@/components/SlideView";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -336,7 +336,11 @@ function ExportMenu({ courseId, title, content, approved, passScore }: { courseI
     return Array.from(hiddenRef.current!.querySelectorAll<HTMLElement>(".slide-content"));
   };
 
-  async function run(kind: "pptx" | "scorm" | "video" | "pdf") {
+  const [scormOpen, setScormOpen] = useState(false);
+  const [scormMode, setScormMode] = useState<"slides" | "video">("video");
+  const [requireView, setRequireView] = useState(true);
+  const estMin = Math.max(1, Math.round(content.slides.reduce((a, s) => a + (s.notes.split(/\s+/).filter(Boolean).length / 2.5 + 0.8), 0) / 60 + content.slides.filter((s) => s.clip_path).length * 0.1));
+  async function run(kind: "pptx" | "scorm" | "video" | "pdf", scorm?: { mode: "slides" | "video"; requireFullView: boolean }) {
     if (!approved) { toast.error("Approve the course before exporting."); return; }
     if (kind === "pdf") { window.open(`/print/${courseId}`, "_blank"); return; }
     abort.current = new AbortController();
@@ -346,15 +350,20 @@ function ExportMenu({ courseId, title, content, approved, passScore }: { courseI
         await exportPptx(title, content, brand);
       } else {
         setJob({ msg: "Rendering slides…", pct: 5 });
-        const imgs = await renderSlideImages(await nodes(), kind === "video" ? 1280 : 1600);
-        if (kind === "scorm") await exportScorm(title, content, brand, imgs, passScore);
-        else
-          await exportVideo({
-            title, slides: content.slides, images: imgs, signal: abort.current.signal,
+        const asVideo = kind === "video" || scorm?.mode === "video";
+        const imgs = await renderSlideImages(await nodes(), asVideo ? 1280 : 1600);
+        const videoOpts = asVideo ? {
+            slides: content.slides, images: imgs, signal: abort.current.signal,
             clips: await Promise.all(content.slides.map(async (s) => s.clip_path ? (await supabase.storage.from("documents").createSignedUrl(s.clip_path, 3600)).data?.signedUrl ?? null : null)),
-            narrate: async (text) => (await narrate({ data: { orgId: current!.org_id, text, voice: brand.voice } })).wavBase64,
-            onProgress: (msg, pct) => setJob({ msg, pct }),
-          });
+            narrate: async (text: string) => (await narrate({ data: { orgId: current!.org_id, text, voice: brand.voice } })).wavBase64,
+            onProgress: (msg: string, pct: number) => setJob({ msg, pct: pct * (kind === "scorm" ? 0.95 : 1) }),
+          } : null;
+        if (kind === "scorm" && scorm?.mode === "video") {
+          const rec = await recordNarratedVideo(videoOpts!);
+          setJob({ msg: "Packaging SCORM file…", pct: 97 });
+          await exportScorm(title, content, brand, imgs, passScore, { rec, requireFullView: scorm.requireFullView });
+        } else if (kind === "scorm") await exportScorm(title, content, brand, imgs, passScore);
+        else await exportVideo({ ...videoOpts!, title });
       }
       await logAudit(current!.org_id, `course.exported.${kind}`, courseId);
       toast.success("Export downloaded");
@@ -375,9 +384,33 @@ function ExportMenu({ courseId, title, content, approved, passScore }: { courseI
           <DropdownMenuItem disabled={!approved} onClick={() => run("pdf")}>PDF handout</DropdownMenuItem>
           <DropdownMenuItem disabled={!approved} onClick={() => run("pptx")}>PowerPoint (.pptx)</DropdownMenuItem>
           <DropdownMenuItem disabled={!approved} onClick={() => run("video")}>Narrated video</DropdownMenuItem>
-          <DropdownMenuItem disabled={!approved} onClick={() => run("scorm")}>SCORM 1.2 package (LMS)</DropdownMenuItem>
+          <DropdownMenuItem disabled={!approved} onClick={() => setScormOpen(true)}>SCORM 1.2 package (LMS)…</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <Dialog open={scormOpen} onOpenChange={setScormOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>SCORM package for your LMS</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            {([["video", "Narrated video", `Learners watch the narrated video (with scene clips and captions), then take the quiz. About ${estMin} min to record; package roughly ${estMin * 2}–${estMin * 4} MB.`], ["slides", "Slides", "Learners click through slide images with the narration text, then take the quiz. Quick to build, small file."]] as const).map(([v, l, d]) => (
+              <label key={v} className={`flex cursor-pointer gap-3 rounded-md border p-3 ${scormMode === v ? "border-primary bg-accent/10" : ""}`}>
+                <input type="radio" name="scorm-mode" checked={scormMode === v} onChange={() => setScormMode(v)} className="mt-1" />
+                <span><span className="font-medium">{l}</span><span className="block text-sm text-muted-foreground">{d}</span></span>
+              </label>
+            ))}
+            {scormMode === "video" && (
+              <label className="flex items-center gap-2 pt-1 text-sm">
+                <input type="checkbox" checked={requireView} onChange={(e) => setRequireView(e.target.checked)} />
+                Require watching the whole video before the quiz (no skipping ahead)
+              </label>
+            )}
+            {scormMode === "video" && <p className="text-xs text-muted-foreground">The video records in real time. Keep this tab open and in front until it finishes.</p>}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setScormOpen(false)}>Cancel</Button>
+            <Button onClick={() => { setScormOpen(false); run("scorm", { mode: scormMode, requireFullView: requireView }); }}><Download /> Build package</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={!!job} onOpenChange={(o) => { if (!o) abort.current?.abort(); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Exporting</DialogTitle></DialogHeader>

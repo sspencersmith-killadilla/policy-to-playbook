@@ -4,3 +4,5 @@
 - [x] Brand kit, team/invites, activity, present, print pages
 - [x] Rename + rebrand to match the Tandem and Cadence app family
 - [x] AI scene clips in narrated video
+- [x] Clip prompts written from narration
+- [x] SCORM with narrated video option

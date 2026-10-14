@@ -36,6 +36,7 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<string | null>(null);
   const isSignup = mode === "signup";
 
   useEffect(() => {
@@ -55,9 +56,21 @@ function AuthPage() {
           email, password, options: { emailRedirectTo: `${window.location.origin}${safeNext(next)}` },
         });
         if (error) throw error;
-        if (!data.session) toast.success("Check your email to confirm your account.");
+        if (!data.session) {
+          if (data.user && (data.user.identities?.length ?? 0) === 0) {
+            toast.error("An account with this email already exists. Sign in instead.");
+          } else {
+            setPending(email);
+            toast.success("Check your email to confirm your account.");
+          }
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error && /not confirmed/i.test(error.message)) {
+          setPending(email);
+          await resend(email);
+          return;
+        }
         if (error) throw error;
       }
     } catch (err: any) {
@@ -65,6 +78,14 @@ function AuthPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function resend(addr: string) {
+    const { error } = await supabase.auth.resend({
+      type: "signup", email: addr, options: { emailRedirectTo: `${window.location.origin}${safeNext(next)}` },
+    });
+    if (error) toast.error(error.message);
+    else toast.success(`We sent a new confirmation link to ${addr}. Check your inbox and spam folder.`);
   }
 
   async function google() {
@@ -98,6 +119,12 @@ function AuthPage() {
           </div>
           <Button type="submit" className="w-full" disabled={busy}>{isSignup ? "Create account" : "Sign in"}</Button>
         </form>
+        {pending && (
+          <p className="mt-4 rounded-md border bg-card p-3 text-sm text-muted-foreground">
+            Your email isn't confirmed yet. Didn't get the link?{" "}
+            <button type="button" onClick={() => resend(pending)} className="text-primary underline-offset-4 hover:underline">Resend confirmation email</button>
+          </p>
+        )}
         <div className="mt-4 flex justify-between text-sm">
           <Link to="/auth" search={{ mode: isSignup ? "signin" : "signup", next }} className="text-primary underline-offset-4 hover:underline">
             {isSignup ? "Have an account? Sign in" : "New here? Create an account"}

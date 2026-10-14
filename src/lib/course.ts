@@ -12,6 +12,8 @@ export type Slide = {
   /** Optional AI scene clip (storage path) played before this slide in the narrated video. */
   clip_path?: string | null;
   clip_prompt?: string | null;
+  /** Optional voiceover recorded by the user (storage path); used instead of the AI voice. */
+  voice_path?: string | null;
 };
 
 export type QuizQuestion = {

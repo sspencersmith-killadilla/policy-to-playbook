@@ -86,6 +86,7 @@ function AuthPage() {
       return () => clearTimeout(t);
     }
     go();
+    return undefined;
   }, [session, next, confirmed, navigate]);
 
   async function submit(e: React.FormEvent) {

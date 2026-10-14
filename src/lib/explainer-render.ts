@@ -290,13 +290,13 @@ class Painter {
           if (sc.kind === "scenario") {
             ctx.font = this.font(20, 700, false);
             const w = ctx.measureText("SCENARIO").width + 32 * S;
-            ctx.fillStyle = brand.accent_color; rrect(ctx, 80 * S, H - 250 * S, w, 38 * S, 19 * S); ctx.fill();
-            ctx.fillStyle = "#ffffff"; ctx.fillText("SCENARIO", 96 * S, H - 224 * S);
+            ctx.fillStyle = brand.accent_color; rrect(ctx, 80 * S, H - 300 * S, w, 38 * S, 19 * S); ctx.fill();
+            ctx.fillStyle = "#ffffff"; ctx.fillText("SCENARIO", 96 * S, H - 274 * S);
           }
           ctx.font = this.font(48, 700);
           ctx.fillStyle = "#ffffff";
-          wrap(ctx, sc.heading, W - 300 * S).slice(0, 2).forEach((l, i) => ctx.fillText(l, 80 * S, H - 160 * S + i * 56 * S + (1 - k) * 20 * S));
-          if (sc.kind === "illustration" && sc.items[0]) { ctx.font = this.font(26, 500, false); ctx.fillText(sc.items[0], 80 * S, H - 50 * S); }
+          wrap(ctx, sc.heading, W - 300 * S).slice(0, 2).forEach((l, i) => ctx.fillText(l, 80 * S, H - 210 * S + i * 56 * S + (1 - k) * 20 * S));
+          if (sc.kind === "illustration" && sc.items[0]) { ctx.font = this.font(26, 500, false); ctx.fillText(sc.items[0], 80 * S, H - 100 * S); }
           ctx.globalAlpha = 1;
         }
         if (t >= split - 0.3) {

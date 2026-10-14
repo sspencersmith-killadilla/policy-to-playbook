@@ -71,12 +71,27 @@ export async function exportPptx(title: string, content: CourseContent, brand: B
 }
 
 /* ---------------- SCORM 1.2 package ---------------- */
-export async function exportScorm(title: string, content: CourseContent, brand: Brand, images: string[], passScore: number) {
+export type Chapter = { slideIndex: number; start: number; end: number };
+export type RecordedVideo = { blob: Blob; ext: string; mime: string; chapters: Chapter[]; duration: number };
+
+export async function exportScorm(
+  title: string, content: CourseContent, brand: Brand, images: string[], passScore: number,
+  video?: { rec: RecordedVideo; requireFullView: boolean },
+) {
   const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
   const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
-  images.forEach((img, i) => zip.file(`slides/${i + 1}.jpg`, img.split(",")[1] ?? "", { base64: true }));
-  const files = images.map((_, i) => `<file href="slides/${i + 1}.jpg"/>`).join("");
+  let files = "";
+  if (video) {
+    const vname = `video.${video.rec.ext}`;
+    zip.file(vname, video.rec.blob);
+    zip.file("captions.vtt", buildVtt(content.slides, video.rec.chapters));
+    zip.file("chapters.json", JSON.stringify(video.rec.chapters));
+    files = `<file href="${vname}"/><file href="captions.vtt"/><file href="chapters.json"/>`;
+  } else {
+    images.forEach((img, i) => zip.file(`slides/${i + 1}.jpg`, img.split(",")[1] ?? "", { base64: true }));
+    files = images.map((_, i) => `<file href="slides/${i + 1}.jpg"/>`).join("");
+  }
   zip.file(
     "imsmanifest.xml",
     `<?xml version="1.0" encoding="UTF-8"?>
@@ -92,6 +107,7 @@ export async function exportScorm(title: string, content: CourseContent, brand: 
     slides: content.slides.map((s) => ({ notes: s.notes })),
     quiz: content.quiz.map((q) => ({ q: q.question, o: q.options, c: q.correct_index, e: q.explanation })),
     pass: passScore,
+    video: video ? { src: `video.${video.rec.ext}`, mime: video.rec.mime.split(";")[0], req: video.requireFullView, ch: video.rec.chapters, titles: content.slides.map((s) => s.title) } : null,
   };
   zip.file(
     "index.html",
@@ -106,6 +122,9 @@ button:disabled{opacity:.4}
 .notes{margin-top:16px;line-height:1.5;opacity:.8}
 .q{background:#fff;padding:20px;border-radius:8px;margin:16px 0}
 label{display:block;padding:8px 0;cursor:pointer}
+video{width:100%;border-radius:8px;background:#000}
+.vg{display:grid;grid-template-columns:1fr 260px;gap:20px}@media(max-width:800px){.vg{grid-template-columns:1fr}}
+.ch{list-style:none;padding:0;margin:0;max-height:70vh;overflow:auto}.ch li{margin:0 0 6px}.cb{width:100%;text-align:left;background:#fff;color:${brand.text_color};padding:10px 12px;font-size:14px}.ch li.on .cb{background:${brand.primary_color};color:${brand.background_color}}
 h1,h2{font-family:${JSON.stringify(brand.heading_font)},serif;color:${brand.primary_color}}
 </style></head><body><div class="wrap" id="app"></div>
 <script>
@@ -125,8 +144,24 @@ document.getElementById('s').onclick=function(){var c=0;D.quiz.forEach(function(
 function finish(score){var pass=score>=D.pass;if(API){API.LMSSetValue("cmi.core.score.raw",String(score));API.LMSSetValue("cmi.core.score.min","0");API.LMSSetValue("cmi.core.score.max","100");API.LMSSetValue("cmi.core.lesson_status",pass?"passed":"failed");API.LMSCommit("");}
 app.innerHTML='<h1>'+(pass?'You passed':'Not quite')+'</h1><p>Your score: '+score+'%. Passing score: '+D.pass+'%.</p>'+(pass?'':'<button id="r">Review and retry</button>');
 var r=document.getElementById('r');if(r)r.onclick=function(){i=0;slide()};}
-window.addEventListener('beforeunload',function(){if(API)API.LMSFinish("")});
-slide();
+window.addEventListener('beforeunload',function(){saveVid();if(API)API.LMSFinish("")});
+var V=null,furthest=0,vel=null;
+function fmt(t){t=Math.floor(t);return Math.floor(t/60)+':'+('0'+t%60).slice(-2)}
+function saveVid(){if(!vel||!API)return;API.LMSSetValue("cmi.core.lesson_location",String(Math.floor(vel.currentTime)));API.LMSSetValue("cmi.suspend_data",JSON.stringify({f:Math.floor(furthest)}));API.LMSCommit("")}
+function video(){var v=D.video;var h='<div class="vg"><div><video id="v" controls playsinline preload="auto"><source src="'+v.src+'" type="'+v.mime+'"><track kind="captions" src="captions.vtt" srclang="en" label="English" default></video>'+
+'<div class="bar"><span id="st"></span><button id="q">'+(D.quiz.length?'Start quiz':'Finish')+'</button></div></div><ol class="ch" id="ch"></ol></div>';
+app.innerHTML=h;vel=document.getElementById('v');var ch=document.getElementById('ch'),qb=document.getElementById('q'),st=document.getElementById('st');
+v.ch.forEach(function(c){var li=document.createElement('li');var b=document.createElement('button');b.className='cb';b.textContent=(v.titles[c.slideIndex]||'Slide')+' · '+fmt(c.start);b.onclick=function(){if(v.req&&c.start>furthest+1){st.textContent='Watch up to this point first.';return}vel.currentTime=c.start;vel.play()};li.appendChild(b);ch.appendChild(li)});
+function unlock(){var done=!v.req||furthest>=vel.duration-1.5;qb.disabled=!done;if(!done)st.textContent='Watch the full video to unlock the '+(D.quiz.length?'quiz':'finish')+'.';else st.textContent=''}
+try{if(API){var sd=API.LMSGetValue("cmi.suspend_data");if(sd)furthest=JSON.parse(sd).f||0;var loc=+API.LMSGetValue("cmi.core.lesson_location")||0;vel.addEventListener('loadedmetadata',function(){if(loc>0&&loc<vel.duration-1)vel.currentTime=loc;unlock()},{once:true})}}catch(e){}
+vel.addEventListener('loadedmetadata',unlock);
+var seeking=false;vel.addEventListener('timeupdate',function(){if(!vel.seeking&&vel.currentTime>furthest&&vel.currentTime-furthest<2)furthest=vel.currentTime;var a=null;v.ch.forEach(function(c,k){if(vel.currentTime>=c.start)a=k});Array.prototype.forEach.call(ch.children,function(li,k){li.className=k===a?'on':''});unlock()});
+vel.addEventListener('seeking',function(){if(v.req&&vel.currentTime>furthest+1){vel.currentTime=furthest;st.textContent='Skipping ahead is turned off for this course.'}});
+vel.addEventListener('ended',function(){furthest=vel.duration;unlock();saveVid()});
+vel.addEventListener('pause',saveVid);setInterval(saveVid,15000);
+qb.onclick=function(){saveVid();if(D.quiz.length)quiz();else finish(100)};unlock();}
+if(D.video){var _f=finish;finish=function(s){_f(s);var r=document.getElementById('r');if(r)r.onclick=function(){video()}}}
+D.video?video():slide();
 </script></body></html>`,
   );
   download(await zip.generateAsync({ type: "blob" }), `${safeName(title)}-scorm12.zip`);
@@ -140,15 +175,37 @@ function b64ToArrayBuffer(b64: string) {
   return bytes.buffer;
 }
 
-export async function exportVideo(opts: {
-  title: string;
+function vttTime(t: number) {
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = (t % 60).toFixed(3).padStart(6, "0");
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${sec}`;
+}
+/** Captions: each slide's narration split into ~12-word cues spread across its chapter. */
+export function buildVtt(slides: Slide[], chapters: Chapter[]) {
+  let out = "WEBVTT\n\n";
+  for (const c of chapters) {
+    const words = (slides[c.slideIndex]?.notes ?? "").trim().split(/\s+/).filter(Boolean);
+    if (!words.length) continue;
+    const parts: string[] = [];
+    for (let i = 0; i < words.length; i += 12) parts.push(words.slice(i, i + 12).join(" "));
+    const span = (c.end - c.start) / parts.length;
+    parts.forEach((p, k) => { out += `${vttTime(c.start + k * span)} --> ${vttTime(c.start + (k + 1) * span)}\n${p}\n\n`; });
+  }
+  return out;
+}
+
+export async function exportVideo(opts: Parameters<typeof recordNarratedVideo>[0] & { title: string }) {
+  const r = await recordNarratedVideo(opts);
+  download(r.blob, `${safeName(opts.title)}.${r.ext}`);
+}
+
+export async function recordNarratedVideo(opts: {
   slides: Slide[];
   images: string[];
   clips?: (string | null)[];
   narrate: (text: string) => Promise<string>;
   onProgress: (msg: string, pct: number) => void;
   signal: AbortSignal;
-}) {
+}): Promise<RecordedVideo> {
   const { slides, images, narrate, onProgress, signal } = opts;
   const audioCtx = new AudioContext();
   const buffers: (AudioBuffer | null)[] = [];
@@ -192,10 +249,14 @@ export async function exportVideo(opts: {
   rec.start(1000);
   const total = buffers.reduce((a, b) => a + (b?.duration ?? 3) + 0.8, 0) + clipEls.reduce((a, v) => a + (v?.duration ?? 0), 0);
   let elapsed = 0;
+  const chapters: Chapter[] = [];
+  const t0 = performance.now();
+  const now = () => (performance.now() - t0) / 1000;
   try {
     for (let i = 0; i < slides.length; i++) {
       if (signal.aborted) throw new Error("Cancelled");
       const clip = clipEls[i];
+      const start = now();
       if (clip) {
         onProgress(`Recording scene clip for slide ${i + 1}…`, 40 + (elapsed / total) * 60);
         audioCtx.createMediaElementSource(clip).connect(dest);
@@ -218,6 +279,7 @@ export async function exportVideo(opts: {
       }
       await new Promise((r) => setTimeout(r, dur * 1000));
       elapsed += dur;
+      chapters.push({ slideIndex: i, start: Math.round(start * 10) / 10, end: Math.round(now() * 10) / 10 });
     }
   } finally {
     clearInterval(timer);
@@ -226,5 +288,6 @@ export async function exportVideo(opts: {
     audioCtx.close();
   }
   const ext = mime.includes("mp4") ? "mp4" : "webm";
-  download(new Blob(chunks, { type: mime || "video/webm" }), `${safeName(opts.title)}.${ext}`);
+  const type = mime || "video/webm";
+  return { blob: new Blob(chunks, { type }), ext, mime: type, chapters, duration: now() };
 }

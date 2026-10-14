@@ -193,8 +193,8 @@ export function buildVtt(slides: Slide[], chapters: Chapter[]) {
   return out;
 }
 
-export async function exportVideo(opts: Parameters<typeof recordNarratedVideo>[0] & { title: string }) {
-  const r = await recordNarratedVideo(opts);
+export async function exportVideo(opts: Parameters<typeof buildNarratedVideo>[0] & { title: string }) {
+  const r = await buildNarratedVideo(opts);
   download(r.blob, `${safeName(opts.title)}.${r.ext}`);
 }
 
@@ -290,4 +290,152 @@ export async function recordNarratedVideo(opts: {
   const ext = mime.includes("mp4") ? "mp4" : "webm";
   const type = mime || "video/webm";
   return { blob: new Blob(chunks, { type }), ext, mime: type, chapters, duration: now() };
+}
+
+/* ---------------- Fast offline MP4 encoder (WebCodecs) ---------------- */
+type EncodeOpts = Parameters<typeof recordNarratedVideo>[0] & { width?: number; height?: number };
+
+export async function fastVideoSupported(width = 1280, height = 720) {
+  if (typeof VideoEncoder === "undefined" || typeof AudioEncoder === "undefined" || typeof VideoFrame === "undefined") return false;
+  try {
+    const v = await VideoEncoder.isConfigSupported({ codec: "avc1.640028", width, height, bitrate: 4_000_000, framerate: 30 });
+    const a = await AudioEncoder.isConfigSupported({ codec: "mp4a.40.2", sampleRate: 48000, numberOfChannels: 2, bitrate: 128_000 });
+    return !!(v.supported && a.supported);
+  } catch {
+    return false;
+  }
+}
+
+/** Builds the narrated video faster than real time. Falls back to real-time recording when unsupported. */
+export async function buildNarratedVideo(opts: EncodeOpts & { onFallback?: () => void }): Promise<RecordedVideo> {
+  const w = opts.width ?? 1280, h = opts.height ?? 720;
+  if (!(await fastVideoSupported(w, h))) {
+    opts.onFallback?.();
+    return recordNarratedVideo(opts);
+  }
+  return encodeNarratedVideo({ ...opts, width: w, height: h });
+}
+
+async function encodeNarratedVideo(opts: EncodeOpts & { width: number; height: number }): Promise<RecordedVideo> {
+  const { Muxer, ArrayBufferTarget } = await import("mp4-muxer");
+  const { slides, images, narrate, onProgress, signal, width: W, height: H } = opts;
+  const SR = 48000;
+  const decodeCtx = new OfflineAudioContext(2, 1, SR);
+  const check = () => { if (signal.aborted) throw new Error("Cancelled"); };
+
+  // 1. Narration audio
+  const voice: (AudioBuffer | null)[] = [];
+  for (let i = 0; i < slides.length; i++) {
+    check();
+    onProgress(`Recording voiceover ${i + 1} of ${slides.length}…`, (i / slides.length) * 40);
+    const text = slides[i]?.notes?.trim();
+    voice.push(text ? await decodeCtx.decodeAudioData(b64ToArrayBuffer(await narrate(text))) : null);
+  }
+
+  // 2. Scene clips (video element for frames, decoded audio track)
+  const clips = await Promise.all((opts.clips ?? []).map(async (src) => {
+    if (!src) return null;
+    const buf = await (await fetch(src)).arrayBuffer();
+    const audio = await decodeCtx.decodeAudioData(buf.slice(0)).catch(() => null);
+    const el = await new Promise<HTMLVideoElement>((res, rej) => {
+      const v = document.createElement("video");
+      v.muted = true; v.preload = "auto"; v.playsInline = true;
+      v.onloadeddata = () => res(v);
+      v.onerror = () => rej(new Error("A scene clip could not be loaded."));
+      v.src = URL.createObjectURL(new Blob([buf], { type: "video/mp4" }));
+    });
+    return { el, audio, duration: el.duration };
+  }));
+  const imgs = await Promise.all(images.map((src) => new Promise<HTMLImageElement>((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = src; })));
+
+  // 3. Timeline
+  const chapters: Chapter[] = [];
+  const segs: { slide: number; clip: boolean; start: number; dur: number }[] = [];
+  let t = 0;
+  slides.forEach((_, i) => {
+    const start = t;
+    const c = clips[i];
+    if (c) { segs.push({ slide: i, clip: true, start: t, dur: c.duration }); t += c.duration; }
+    const d = (voice[i]?.duration ?? 3) + 0.8;
+    segs.push({ slide: i, clip: false, start: t, dur: d }); t += d;
+    chapters.push({ slideIndex: i, start: Math.round(start * 10) / 10, end: Math.round(t * 10) / 10 });
+  });
+  const total = t;
+
+  const target = new ArrayBufferTarget();
+  const muxer = new Muxer({
+    target,
+    video: { codec: "avc", width: W, height: H, frameRate: 30 },
+    audio: { codec: "aac", sampleRate: SR, numberOfChannels: 2 },
+    fastStart: "in-memory",
+    firstTimestampBehavior: "offset",
+  });
+  let encErr: Error | null = null;
+  const venc = new VideoEncoder({ output: (c, m) => muxer.addVideoChunk(c, m), error: (e) => (encErr = e as Error) });
+  venc.configure({ codec: "avc1.640028", width: W, height: H, bitrate: W >= 1920 ? 8_000_000 : 4_000_000, framerate: 30, latencyMode: "quality" });
+  const aenc = new AudioEncoder({ output: (c, m) => muxer.addAudioChunk(c, m), error: (e) => (encErr = e as Error) });
+  aenc.configure({ codec: "mp4a.40.2", sampleRate: SR, numberOfChannels: 2, bitrate: 128_000 });
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d")!;
+  const us = (s: number) => Math.round(s * 1e6);
+  const pushFrame = async (ts: number, dur: number, key: boolean) => {
+    if (encErr) throw encErr;
+    while (venc.encodeQueueSize > 8) await new Promise((r) => setTimeout(r, 5));
+    const f = new VideoFrame(canvas, { timestamp: us(ts), duration: us(dur) });
+    venc.encode(f, { keyFrame: key });
+    f.close();
+  };
+
+  // 4. Video frames
+  const SLIDE_FPS = 5, CLIP_FPS = 30;
+  for (const s of segs) {
+    check();
+    onProgress(`Building video: slide ${s.slide + 1} of ${slides.length}${s.clip ? " (scene clip)" : ""}…`, 40 + (s.start / total) * 55);
+    if (s.clip) {
+      const el = clips[s.slide]!.el;
+      const n = Math.max(1, Math.floor(s.dur * CLIP_FPS));
+      for (let k = 0; k < n; k++) {
+        el.currentTime = Math.min(k / CLIP_FPS, s.dur - 0.01);
+        await new Promise<void>((r) => (el.onseeked = () => r()));
+        ctx.drawImage(el, 0, 0, W, H);
+        await pushFrame(s.start + k / CLIP_FPS, 1 / CLIP_FPS, k === 0);
+      }
+    } else {
+      ctx.drawImage(imgs[s.slide]!, 0, 0, W, H);
+      const n = Math.max(1, Math.ceil(s.dur * SLIDE_FPS));
+      for (let k = 0; k < n; k++) await pushFrame(s.start + k / SLIDE_FPS, Math.min(1 / SLIDE_FPS, s.dur - k / SLIDE_FPS), k % (SLIDE_FPS * 4) === 0);
+    }
+  }
+
+  // 5. Audio mix
+  const len = Math.ceil(total * SR);
+  const L = new Float32Array(len), R = new Float32Array(len);
+  const mix = (b: AudioBuffer | null, at: number) => {
+    if (!b) return;
+    const off = Math.round(at * SR);
+    const l = b.getChannelData(0), r = b.numberOfChannels > 1 ? b.getChannelData(1) : l;
+    for (let i = 0; i < l.length && off + i < len; i++) { L[off + i]! += l[i]!; R[off + i]! += r[i]!; }
+  };
+  for (const s of segs) mix(s.clip ? clips[s.slide]!.audio : voice[s.slide] ?? null, s.start);
+  const CH = SR; // 1-second chunks
+  for (let off = 0; off < len; off += CH) {
+    check();
+    const n = Math.min(CH, len - off);
+    const data = new Float32Array(n * 2);
+    data.set(L.subarray(off, off + n), 0);
+    data.set(R.subarray(off, off + n), n);
+    const ad = new AudioData({ format: "f32-planar", sampleRate: SR, numberOfFrames: n, numberOfChannels: 2, timestamp: us(off / SR), data });
+    aenc.encode(ad);
+    ad.close();
+  }
+
+  onProgress("Finishing MP4…", 97);
+  await venc.flush();
+  await aenc.flush();
+  if (encErr) throw encErr;
+  muxer.finalize();
+  clips.forEach((c) => c && URL.revokeObjectURL(c.el.src));
+  return { blob: new Blob([target.buffer], { type: "video/mp4" }), ext: "mp4", mime: "video/mp4", chapters, duration: total };
 }

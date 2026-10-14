@@ -104,13 +104,14 @@ function Guide() {
         <ol>
           <li>In the course editor, click the slide you want, ideally a <b>Scenario</b> slide.</li>
           <li>Scroll down the right-hand panel to the box called <b>AI scene clip (video only)</b>.</li>
-          <li>Describe the scene in one or two sentences. Scenario slides are pre-filled with their situation, which you can edit.</li>
+          <li>Click <b>Write prompt from narration</b>. Relay reads the slide's narration and text and writes a scene description built for a 6-second clip: one moment, one camera move, no speech or on-screen text. Edit it if you like, or write your own. This uses very few credits and doesn't make a video yet.</li>
           <li>Click <b>Generate clip</b> and confirm the credit warning.</li>
           <li>Wait 1–3 minutes, keeping the tab open. The button shows progress.</li>
           <li>When done, the clip appears in a player in the box. Watch it. Use <b>Replace clip</b> to try again or <b>Remove</b> to drop it.</li>
           <li>Approve the course, then choose <b>Export → Narrated video</b>. The clip plays before that slide.</li>
         </ol>
-        <p><b>Writing a good scene description:</b></p>
+        <Tip>To do every scenario slide at once, click <b>Write prompts for all scenario slides</b> under the slide list. It fills in a prompt on each scenario slide that doesn't have one; then visit each slide, review, and click Generate clip.</Tip>
+        <p><b>Writing a good scene description yourself:</b></p>
         <ul>
           <li>Say who, where and what happens: "A nurse at a hospital front desk politely declines a gift basket from a visitor."</li>
           <li>Describe one moment. A 6-second clip can't tell a long story.</li>

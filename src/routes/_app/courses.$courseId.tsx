@@ -7,7 +7,7 @@ import { ArrowDown, ArrowUp, Copy, Trash2, Plus, Sparkles, Play, Download, Check
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
 import { canEdit, emptySlide, LAYOUTS, newId, normalizeContent, type CourseContent, type Slide, type QuizQuestion } from "@/lib/course";
-import { regenerateSlide, narrateText, startSceneClip, checkSceneClip } from "@/lib/ai.functions";
+import { regenerateSlide, narrateText, startSceneClip, checkSceneClip, suggestClipPrompts } from "@/lib/ai.functions";
 import { exportPptx, exportScorm, exportVideo, renderSlideImages } from "@/lib/exports";
 import { ScaledSlide, SlideView, useBrandFonts } from "@/components/SlideView";
 import { Button } from "@/components/ui/button";
@@ -151,6 +151,7 @@ function Editor() {
                 <span className="block truncate px-1 py-0.5 text-xs text-muted-foreground">{i + 1}. {s.title}</span>
               </button>
             ))}
+            {editable && <BulkClipPrompts courseId={courseId} slides={slides} onDone={(m) => update((c) => ({ ...c, slides: c.slides.map((x) => (m[x.id] ? { ...x, clip_prompt: m[x.id] ?? null } : x)) }))} />}
             {editable && (
               <Button variant="outline" size="sm" className="w-full" onClick={() => { update((c) => ({ ...c, slides: [...c.slides.slice(0, sel + 1), emptySlide(), ...c.slides.slice(sel + 1)] })); setSel(sel + 1); }}>
                 <Plus /> Add slide
@@ -397,6 +398,19 @@ function ExportMenu({ courseId, title, content, approved, passScore }: { courseI
 function SceneClip({ slide, courseId, disabled, onChange }: { slide: Slide; courseId: string; disabled: boolean; onChange: (p: Partial<Slide>) => void }) {
   const start = useServerFn(startSceneClip);
   const check = useServerFn(checkSceneClip);
+  const suggest = useServerFn(suggestClipPrompts);
+  const [writing, setWriting] = useState(false);
+  useEffect(() => { if (slide.clip_prompt) setPrompt(slide.clip_prompt); }, [slide.clip_prompt]);
+  async function writeFromNarration() {
+    setWriting(true);
+    try {
+      const [r] = await suggest({ data: { courseId, slides: [slide] } });
+      if (!r) throw new Error("No prompt came back. Try again.");
+      setPrompt(r.prompt);
+      onChange({ clip_prompt: r.prompt });
+      toast.success("Prompt written. Review it, then generate the clip.");
+    } catch (e: any) { toast.error(e.message); } finally { setWriting(false); }
+  }
   const [prompt, setPrompt] = useState(slide.clip_prompt ?? (slide.layout === "scenario" ? slide.body ?? "" : ""));
   const [busy, setBusy] = useState<string | null>(null);
   const [url, setUrl] = useState<string | null>(null);
@@ -439,7 +453,10 @@ function SceneClip({ slide, courseId, disabled, onChange }: { slide: Slide; cour
       {url && <video src={url} controls className="mt-2 w-full rounded" />}
       {!disabled && (
         <>
-          <Textarea className="mt-2" rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="e.g. A warehouse worker notices a spill near a forklift lane and places a caution sign" />
+          <Button size="sm" variant="outline" className="mt-2" onClick={writeFromNarration} disabled={writing || !!busy || !(slide.notes.trim() || slide.body?.trim())}>
+            {writing ? <Loader2 className="animate-spin" /> : <Sparkles />} Write prompt from narration
+          </Button>
+          <Textarea className="mt-2" rows={5} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="e.g. A warehouse worker notices a spill near a forklift lane and places a caution sign" />
           <div className="mt-2 flex gap-2">
             <Button size="sm" onClick={generate} disabled={!!busy || prompt.trim().length < 10}>
               {busy ? <><Loader2 className="animate-spin" /> {busy}</> : <><Sparkles /> {slide.clip_path ? "Replace clip" : "Generate clip"}</>}
@@ -449,5 +466,25 @@ function SceneClip({ slide, courseId, disabled, onChange }: { slide: Slide; cour
         </>
       )}
     </div>
+  );
+}
+
+function BulkClipPrompts({ courseId, slides, onDone }: { courseId: string; slides: Slide[]; onDone: (m: Record<string, string>) => void }) {
+  const suggest = useServerFn(suggestClipPrompts);
+  const [busy, setBusy] = useState(false);
+  const targets = slides.filter((s) => s.layout === "scenario" && !s.clip_prompt?.trim() && !s.clip_path);
+  if (!targets.length) return null;
+  async function run() {
+    setBusy(true);
+    try {
+      const r = await suggest({ data: { courseId, slides: targets } });
+      onDone(Object.fromEntries(r.map((p) => [p.id, p.prompt])));
+      toast.success(`Wrote ${r.length} clip prompt${r.length === 1 ? "" : "s"}. Review each scenario slide, then generate.`);
+    } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
+  }
+  return (
+    <Button variant="outline" size="sm" className="h-auto w-full whitespace-normal py-1.5" onClick={run} disabled={busy}>
+      {busy ? <Loader2 className="animate-spin" /> : <Sparkles />} Write prompts for all scenario slides ({targets.length})
+    </Button>
   );
 }

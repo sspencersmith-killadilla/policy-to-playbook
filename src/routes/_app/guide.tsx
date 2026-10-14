@@ -133,10 +133,10 @@ function Guide() {
         <ul>
           <li><b>PDF handout</b> – opens a print view; choose "Save as PDF".</li>
           <li><b>PowerPoint (.pptx)</b> – editable slides with speaker notes.</li>
-          <li><b>Narrated video</b> – slides with voiceover and any scene clips. It records in real time, so a 10-minute course takes about 10 minutes. Keep the tab open and visible. The file downloads as a WebM video.</li>
+          <li><b>Narrated video</b> – slides with voiceover and any scene clips. It builds faster than real time (a 10-minute course takes about 1–3 minutes) and downloads as an MP4. Tick <b>Full HD (1080p)</b> for a sharper, larger file. You can switch to other tabs while it builds, but don't close this one. Older browsers fall back to real-time recording; Relay tells you when that happens.</li>
           <li><b>SCORM 1.2 package</b> – a zip you upload to your LMS (Canvas, Moodle, Cornerstone, etc.). It includes the quiz and reports scores to the LMS. You choose:
             <ul>
-              <li><b>Narrated video</b> – learners watch the narrated video, with scene clips, captions and a clickable slide list, then take the quiz. Leave <b>Require watching the whole video</b> on to block skipping ahead and keep the quiz locked until the end. Learners resume where they left off. Recording runs in real time, and the file is larger (about 2–4 MB per minute), so check your LMS upload limit.</li>
+              <li><b>Narrated video</b> – learners watch the narrated video, with scene clips, captions and a clickable slide list, then take the quiz. Leave <b>Require watching the whole video</b> on to block skipping ahead and keep the quiz locked until the end. Learners resume where they left off. It builds faster than real time, and the file is larger (about 2–4 MB per minute), so check your LMS upload limit.</li>
               <li><b>Slides</b> – learners click through the slides and narration text. Fast to build, small file.</li>
             </ul></li>
         </ul>
@@ -154,7 +154,7 @@ function Guide() {
           <li><b>Clip blocked by safety filters?</b> Reword the scene more neutrally and try again.</li>
           <li><b>Clip taking too long?</b> Try again later; only one clip can generate at a time.</li>
           <li><b>"Out of AI credits"?</b> Your workspace needs more credits before AI features work again.</li>
-          <li><b>Video export stalls?</b> Keep the tab in front; browsers slow down background tabs.</li>
+          <li><b>Video export stalls?</b> Use a current version of Chrome, Edge or Safari. If Relay says it's recording in real time, keep the tab in front.</li>
           <li><b>Didn't get an email?</b> Check spam, then use Resend or copy the invite link.</li>
         </ul>
       </article>

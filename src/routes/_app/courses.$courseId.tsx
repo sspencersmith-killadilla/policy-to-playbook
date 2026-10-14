@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
 import { canEdit, emptySlide, LAYOUTS, newId, normalizeContent, type CourseContent, type Slide, type QuizQuestion } from "@/lib/course";
 import { regenerateSlide, narrateText, startSceneClip, checkSceneClip, suggestClipPrompts } from "@/lib/ai.functions";
-import { exportPptx, exportScorm, exportVideo, recordNarratedVideo, renderSlideImages } from "@/lib/exports";
+import { exportPptx, exportScorm, exportVideo, buildNarratedVideo, renderSlideImages } from "@/lib/exports";
 import { ScaledSlide, SlideView, useBrandFonts } from "@/components/SlideView";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -339,6 +339,8 @@ function ExportMenu({ courseId, title, content, approved, passScore }: { courseI
   const [scormOpen, setScormOpen] = useState(false);
   const [scormMode, setScormMode] = useState<"slides" | "video">("video");
   const [requireView, setRequireView] = useState(true);
+  const [hd, setHd] = useState(false);
+  const [videoOpen, setVideoOpen] = useState(false);
   const estMin = Math.max(1, Math.round(content.slides.reduce((a, s) => a + (s.notes.split(/\s+/).filter(Boolean).length / 2.5 + 0.8), 0) / 60 + content.slides.filter((s) => s.clip_path).length * 0.1));
   async function run(kind: "pptx" | "scorm" | "video" | "pdf", scorm?: { mode: "slides" | "video"; requireFullView: boolean }) {
     if (!approved) { toast.error("Approve the course before exporting."); return; }
@@ -351,15 +353,24 @@ function ExportMenu({ courseId, title, content, approved, passScore }: { courseI
       } else {
         setJob({ msg: "Rendering slides…", pct: 5 });
         const asVideo = kind === "video" || scorm?.mode === "video";
-        const imgs = await renderSlideImages(await nodes(), asVideo ? 1280 : 1600);
+        const W = asVideo && hd ? 1920 : 1280;
+        const imgs = await renderSlideImages(await nodes(), asVideo ? W : 1600);
+        const t0 = Date.now();
+        const eta = (pct: number) => {
+          if (pct < 42) return "";
+          const left = ((Date.now() - t0) / pct) * (100 - pct) / 1000;
+          return left > 5 ? ` About ${left > 90 ? `${Math.round(left / 60)} min` : `${Math.round(left)} sec`} left.` : "";
+        };
         const videoOpts = asVideo ? {
             slides: content.slides, images: imgs, signal: abort.current.signal,
             clips: await Promise.all(content.slides.map(async (s) => s.clip_path ? (await supabase.storage.from("documents").createSignedUrl(s.clip_path, 3600)).data?.signedUrl ?? null : null)),
             narrate: async (text: string) => (await narrate({ data: { orgId: current!.org_id, text, voice: brand.voice } })).wavBase64,
-            onProgress: (msg: string, pct: number) => setJob({ msg, pct: pct * (kind === "scorm" ? 0.95 : 1) }),
+            onProgress: (msg: string, pct: number) => setJob({ msg: msg + eta(pct), pct: pct * (kind === "scorm" ? 0.95 : 1) }),
+            width: W, height: W === 1920 ? 1080 : 720,
+            onFallback: () => toast.info("This browser can't use fast video building, so the video will record in real time. Keep this tab open and in front."),
           } : null;
         if (kind === "scorm" && scorm?.mode === "video") {
-          const rec = await recordNarratedVideo(videoOpts!);
+          const rec = await buildNarratedVideo(videoOpts!);
           setJob({ msg: "Packaging SCORM file…", pct: 97 });
           await exportScorm(title, content, brand, imgs, passScore, { rec, requireFullView: scorm.requireFullView });
         } else if (kind === "scorm") await exportScorm(title, content, brand, imgs, passScore);
@@ -367,6 +378,7 @@ function ExportMenu({ courseId, title, content, approved, passScore }: { courseI
       }
       await logAudit(current!.org_id, `course.exported.${kind}`, courseId);
       toast.success("Export downloaded");
+      if (document.hidden) { const old = document.title; document.title = "✓ Export ready — Relay"; const back = () => { document.title = old; document.removeEventListener("visibilitychange", back); }; document.addEventListener("visibilitychange", back); }
     } catch (e: any) {
       if (e.message !== "Cancelled") toast.error(e.message ?? "Export failed");
     } finally {
@@ -383,7 +395,7 @@ function ExportMenu({ courseId, title, content, approved, passScore }: { courseI
           {!approved && <><DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Approve the course to unlock exports</DropdownMenuLabel><DropdownMenuSeparator /></>}
           <DropdownMenuItem disabled={!approved} onClick={() => run("pdf")}>PDF handout</DropdownMenuItem>
           <DropdownMenuItem disabled={!approved} onClick={() => run("pptx")}>PowerPoint (.pptx)</DropdownMenuItem>
-          <DropdownMenuItem disabled={!approved} onClick={() => run("video")}>Narrated video</DropdownMenuItem>
+          <DropdownMenuItem disabled={!approved} onClick={() => setVideoOpen(true)}>Narrated video (MP4)…</DropdownMenuItem>
           <DropdownMenuItem disabled={!approved} onClick={() => setScormOpen(true)}>SCORM 1.2 package (LMS)…</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -391,7 +403,7 @@ function ExportMenu({ courseId, title, content, approved, passScore }: { courseI
         <DialogContent>
           <DialogHeader><DialogTitle>SCORM package for your LMS</DialogTitle></DialogHeader>
           <div className="space-y-2">
-            {([["video", "Narrated video", `Learners watch the narrated video (with scene clips and captions), then take the quiz. About ${estMin} min to record; package roughly ${estMin * 2}–${estMin * 4} MB.`], ["slides", "Slides", "Learners click through slide images with the narration text, then take the quiz. Quick to build, small file."]] as const).map(([v, l, d]) => (
+            {([["video", "Narrated video", `Learners watch the narrated video (with scene clips and captions), then take the quiz. About ${estMin} min of video; package roughly ${estMin * (hd ? 4 : 2)}–${estMin * (hd ? 7 : 4)} MB.`], ["slides", "Slides", "Learners click through slide images with the narration text, then take the quiz. Quick to build, small file."]] as const).map(([v, l, d]) => (
               <label key={v} className={`flex cursor-pointer gap-3 rounded-md border p-3 ${scormMode === v ? "border-primary bg-accent/10" : ""}`}>
                 <input type="radio" name="scorm-mode" checked={scormMode === v} onChange={() => setScormMode(v)} className="mt-1" />
                 <span><span className="font-medium">{l}</span><span className="block text-sm text-muted-foreground">{d}</span></span>
@@ -403,11 +415,23 @@ function ExportMenu({ courseId, title, content, approved, passScore }: { courseI
                 Require watching the whole video before the quiz (no skipping ahead)
               </label>
             )}
-            {scormMode === "video" && <p className="text-xs text-muted-foreground">The video records in real time. Keep this tab open and in front until it finishes.</p>}
+            {scormMode === "video" && <label className="flex items-center gap-2 pt-1 text-sm"><input type="checkbox" checked={hd} onChange={(e) => setHd(e.target.checked)} /> Full HD (1080p). Sharper, about twice the file size.</label>}
+            {scormMode === "video" && <p className="text-xs text-muted-foreground">The video builds faster than real time. You can switch tabs, but don't close this one until it finishes.</p>}
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setScormOpen(false)}>Cancel</Button>
             <Button onClick={() => { setScormOpen(false); run("scorm", { mode: scormMode, requireFullView: requireView }); }}><Download /> Build package</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={videoOpen} onOpenChange={setVideoOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Narrated video</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">An MP4 with voiceover for every slide and any scene clips. About {estMin} min long. It builds faster than real time; you can switch tabs, but keep this one open.</p>
+          <label className="flex items-center gap-2 pt-1 text-sm"><input type="checkbox" checked={hd} onChange={(e) => setHd(e.target.checked)} /> Full HD (1080p). Sharper, about twice the file size.</label>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setVideoOpen(false)}>Cancel</Button>
+            <Button onClick={() => { setVideoOpen(false); run("video"); }}><Download /> Build video</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -416,7 +440,7 @@ function ExportMenu({ courseId, title, content, approved, passScore }: { courseI
           <DialogHeader><DialogTitle>Exporting</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">{job?.msg}</p>
           <Progress value={job?.pct ?? 0} />
-          <p className="text-xs text-muted-foreground">Keep this tab open. Close this window to cancel.</p>
+          <p className="text-xs text-muted-foreground">You can switch tabs, but keep this one open. Close this window to cancel.</p>
         </DialogContent>
       </Dialog>
       {mounted && (

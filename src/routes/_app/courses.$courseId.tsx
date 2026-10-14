@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Copy, Trash2, Plus, Sparkles, Play, Download, CheckCircle2, Volume2, Loader2, History } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Trash2, Plus, Sparkles, Play, Download, CheckCircle2, Volume2, Loader2, History, Clapperboard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
 import { canEdit, emptySlide, LAYOUTS, newId, normalizeContent, type CourseContent, type Slide, type QuizQuestion } from "@/lib/course";
@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import { ExplainerStudio } from "@/components/ExplainerStudio";
 
 export const Route = createFileRoute("/_app/courses/$courseId")({
   head: () => ({
@@ -53,6 +54,7 @@ function Editor() {
   const [status, setStatus] = useState("draft");
   const [sel, setSel] = useState(0);
   const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
+  const [explainerOpen, setExplainerOpen] = useState(false);
   const dirty = useRef(false);
 
   useEffect(() => {
@@ -131,7 +133,11 @@ function Editor() {
         <div className="ml-auto flex gap-2">
           {editable && status !== "approved" && <Button variant="outline" onClick={approve}><CheckCircle2 /> Approve</Button>}
           <Button variant="outline" asChild><Link to="/present/$courseId" params={{ courseId }}><Play /> Present</Link></Button>
+          <Button variant="outline" onClick={() => setExplainerOpen(true)}><Clapperboard /> Explainer video</Button>
           <ExportMenu courseId={courseId} title={title} content={content} approved={status === "approved"} passScore={q.data!.pass_score} />
+          <ExplainerStudio open={explainerOpen} onOpenChange={setExplainerOpen} courseId={courseId} title={title} content={content}
+            approved={status === "approved"} editable={editable} passScore={q.data!.pass_score}
+            onSaved={(explainer) => setContent((c) => (c ? { ...c, explainer } : c))} />
         </div>
       </header>
       {status === "approved" && q.data?.approved_by_email && (

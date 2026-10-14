@@ -93,7 +93,7 @@ function Guide() {
         <ul>
           <li><b>Edit text</b> – change the title, bullets, body and layout. Changes save automatically.</li>
           <li><b>Speaker notes</b> – this is the narration script. It becomes the voiceover in the narrated video.</li>
-          <li><b>Preview voiceover</b> – hear how the notes sound in your chosen voice.</li>
+          <li><b>Hear voiceover</b> – hear how the notes sound in your chosen voice.</li>
           <li><b>Rewrite with AI</b> – type an instruction such as "shorter and friendlier" and click <b>Rewrite slide</b>.</li>
           <li><b>Reorder, duplicate or delete</b> slides with the buttons on each slide.</li>
           <li><b>Quiz</b> – edit questions, the four answer options, which one is correct, the explanation and the pass score.</li>

@@ -16,6 +16,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AppActivityRouteImport } from './routes/_app/activity'
 import { Route as AppBrandRouteImport } from './routes/_app/brand'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
+import { Route as AppGuideRouteImport } from './routes/_app/guide'
 import { Route as AppNewRouteImport } from './routes/_app/new'
 import { Route as AppTeamRouteImport } from './routes/_app/team'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
@@ -58,6 +59,11 @@ const AppBrandRoute = AppBrandRouteImport.update({
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGuideRoute = AppGuideRouteImport.update({
+  id: '/guide',
+  path: '/guide',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNewRoute = AppNewRouteImport.update({
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/activity': typeof AppActivityRoute
   '/brand': typeof AppBrandRoute
   '/dashboard': typeof AppDashboardRoute
+  '/guide': typeof AppGuideRoute
   '/new': typeof AppNewRoute
   '/team': typeof AppTeamRoute
   '/invite/$token': typeof InviteTokenRoute
@@ -131,6 +138,7 @@ export interface FileRoutesByTo {
   '/activity': typeof AppActivityRoute
   '/brand': typeof AppBrandRoute
   '/dashboard': typeof AppDashboardRoute
+  '/guide': typeof AppGuideRoute
   '/new': typeof AppNewRoute
   '/team': typeof AppTeamRoute
   '/invite/$token': typeof InviteTokenRoute
@@ -150,6 +158,7 @@ export interface FileRoutesById {
   '/_app/activity': typeof AppActivityRoute
   '/_app/brand': typeof AppBrandRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/guide': typeof AppGuideRoute
   '/_app/new': typeof AppNewRoute
   '/_app/team': typeof AppTeamRoute
   '/invite/$token': typeof InviteTokenRoute
@@ -169,6 +178,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/brand'
     | '/dashboard'
+    | '/guide'
     | '/new'
     | '/team'
     | '/invite/$token'
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/brand'
     | '/dashboard'
+    | '/guide'
     | '/new'
     | '/team'
     | '/invite/$token'
@@ -204,6 +215,7 @@ export interface FileRouteTypes {
     | '/_app/activity'
     | '/_app/brand'
     | '/_app/dashboard'
+    | '/_app/guide'
     | '/_app/new'
     | '/_app/team'
     | '/invite/$token'
@@ -279,6 +291,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/guide': {
+      id: '/_app/guide'
+      path: '/guide'
+      fullPath: '/guide'
+      preLoaderRoute: typeof AppGuideRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/new': {
       id: '/_app/new'
       path: '/new'
@@ -349,6 +368,7 @@ interface AppRouteChildren {
   AppActivityRoute: typeof AppActivityRoute
   AppBrandRoute: typeof AppBrandRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppGuideRoute: typeof AppGuideRoute
   AppNewRoute: typeof AppNewRoute
   AppTeamRoute: typeof AppTeamRoute
   AppCoursesCourseIdRoute: typeof AppCoursesCourseIdRoute
@@ -358,6 +378,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppActivityRoute: AppActivityRoute,
   AppBrandRoute: AppBrandRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppGuideRoute: AppGuideRoute,
   AppNewRoute: AppNewRoute,
   AppTeamRoute: AppTeamRoute,
   AppCoursesCourseIdRoute: AppCoursesCourseIdRoute,

@@ -70,7 +70,7 @@ function Guide() {
           <li><b>Heading font / Body font</b> – fonts used on slides and exports.</li>
           <li><b>Narrator voice</b> – the AI voice used for voiceovers and the narrated video.</li>
         </ul>
-        <Tip>The slide preview on the page updates as you change things. Click <b>Save</b> when done.</Tip>
+        <Tip>The slide preview on the page updates as you change things. Click <b>Save brand kit</b> when done.</Tip>
 
         <H id="team">3. Invite your team</H>
         <ol>
@@ -121,7 +121,7 @@ function Guide() {
 
         <H id="approve">7. Review and approve</H>
         <ol>
-          <li>Present the course full screen to read it as a learner would.</li>
+          <li>Click <b>Present</b> to view the course full screen to read it as a learner would.</li>
           <li>Check each slide against its cited policy section. Have HR or legal review it if needed.</li>
           <li>Click <b>Approve</b>. This unlocks exports and saves an "Approved" version.</li>
         </ol>
@@ -138,7 +138,7 @@ function Guide() {
 
         <H id="versions">9. Versions and activity</H>
         <ul>
-          <li><b>Versions</b> – in the course editor you can see snapshots (AI draft, approvals) and <b>Restore</b> any of them.</li>
+          <li><b>Versions</b> – in the course editor you can see snapshots (AI draft, approvals) and <b>Restore</b> any of them. Click <b>Save a version now</b> before big changes.</li>
           <li><b>Activity</b> – the <Link to="/activity" className="text-primary underline">Activity</Link> page shows who generated, edited, approved and exported what, and when.</li>
         </ul>
 

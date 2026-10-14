@@ -1,7 +1,7 @@
 import mark from "@/assets/relay-mark.png";
 import { createFileRoute, Link, Outlet, useNavigate, useLocation } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { LayoutGrid, Plus, Palette, Users, History, LogOut } from "lucide-react";
+import { LayoutGrid, Plus, Palette, Users, History, LogOut, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -36,6 +36,7 @@ const nav = [
   { to: "/brand", label: "Brand kit", icon: Palette },
   { to: "/team", label: "Team", icon: Users },
   { to: "/activity", label: "Activity", icon: History },
+  { to: "/guide", label: "User guide", icon: BookOpen },
 ] as const;
 
 function Shell({ email }: { email: string }) {

@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { MONTHLY_CLIP_LIMIT, MONTHLY_GENERATION_LIMIT, newId, type CourseContent, type Slide } from "./course";
+import { EXPLAINER_SCENES, MONTHLY_CLIP_LIMIT, MONTHLY_GENERATION_LIMIT, MONTHLY_ILLUSTRATION_LIMIT, newId, type CourseContent, type ExplainerScene, type Slide } from "./course";
 
 const slideSchema = {
   type: "object",
@@ -85,7 +85,7 @@ export const generateCourse = createServerFn({ method: "POST" })
       .from("audit_events")
       .select("id", { count: "exact", head: true })
       .eq("org_id", doc.org_id)
-      .eq("action", "course.generated")
+      .in("action", ["course.generated", "explainer.generated"])
       .gte("created_at", since);
     if ((count ?? 0) >= MONTHLY_GENERATION_LIMIT)
       throw new Error(`Your organization reached its limit of ${MONTHLY_GENERATION_LIMIT} AI generations in 30 days.`);
@@ -293,4 +293,127 @@ export const suggestClipPrompts = createServerFn({ method: "POST" })
     });
     const ids = new Set(data.slides.map((s) => s.id));
     return out.prompts.filter((p) => ids.has(p.id) && p.prompt.trim()).map((p) => ({ id: p.id, prompt: p.prompt.trim().slice(0, 800) }));
+  });
+
+/* ---------------- Explainer video ---------------- */
+const explainerSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["scenes"],
+  properties: {
+    scenes: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["kind", "narration", "heading", "items", "items2", "quote", "source", "illustration_prompt", "clip_slide_id"],
+        properties: {
+          kind: { type: "string", enum: ["title", "points", "dodont", "steps", "quote", "fact", "illustration", "scenario", "recap"] },
+          narration: { type: "string", description: "What the narrator says in this scene." },
+          heading: { type: "string", description: "Short on-screen headline, <= 8 words. For 'fact' scenes, the big number or phrase itself." },
+          items: { type: "array", items: { type: "string" }, description: "Points / steps / Do items / recap items / the right actions in a scenario. <= 9 words each." },
+          items2: { type: "array", items: { type: "string" }, description: "Don't items, only for 'dodont'. Otherwise empty." },
+          quote: { type: ["string", "null"], description: "Exact wording copied from the policy, only for 'quote'." },
+          source: { type: ["string", "null"], description: "Policy section the scene is based on." },
+          illustration_prompt: { type: ["string", "null"], description: "For 'illustration' and 'scenario': what the picture shows. Otherwise null." },
+          clip_slide_id: { type: ["string", "null"], description: "For 'scenario': id of a listed slide whose video clip matches this situation, else null." },
+        },
+      },
+    },
+  },
+};
+
+const TONES = { friendly: "warm, friendly and encouraging, like a helpful colleague", formal: "professional and precise", plain: "plain-spoken, direct and short sentences" } as const;
+
+const EXPLAINER_RULES = `You are a scriptwriter for short animated explainer videos that teach employees a workplace policy, in the style of a documentary explainer: it tells a story, it does not read slides.
+Rules:
+- Use ONLY facts in the provided course and policy. Never invent rules, numbers, names, contacts or consequences.
+- Structure: open with a hook (a question or a relatable moment) as a "title" scene, explain why the policy matters, teach the key ideas, walk through at least one realistic "scenario" (the situation in the narration, the right actions in items), and end with a "recap" scene.
+- Vary the visuals: use "points", "dodont", "steps" (for processes), "quote" (exact policy wording, with its section in source), "fact" (one striking number, deadline or rule), "illustration" (a moment that is easier to picture than to list). Do not use the same kind more than twice in a row.
+- Narration is spoken, second person ("you"), connected from scene to scene with transitions, 8th-grade reading level. Each scene's narration refers to what is on screen.
+- On-screen text is short. items: 2-5 entries except "fact" (0-1 entry: a one-line explanation) and "quote"/"title"/"illustration" (0-1 entry: a subtitle).
+- illustration_prompt: one sentence describing a scene with people at work (neutral, diverse casting) or a simple object metaphor. No words, signs, logos or brands in the picture.`;
+
+export const writeExplainerScript = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string; length: 2 | 4 | 6; tone: "friendly" | "formal" | "plain"; illustrations: boolean }) => ({
+    courseId: d.courseId,
+    length: ([2, 4, 6] as const).includes(d.length) ? d.length : 4,
+    tone: (["friendly", "formal", "plain"] as const).includes(d.tone) ? d.tone : "friendly",
+    illustrations: !!d.illustrations,
+  }))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context as any;
+    const { data: course } = await supabase.from("courses").select("org_id, document_id, title, content").eq("id", data.courseId).single();
+    if (!course) throw new Error("Course not found.");
+    await assertEditor(supabase, course.org_id, userId);
+    const since = new Date(Date.now() - 30 * 864e5).toISOString();
+    const { count } = await supabase.from("audit_events").select("id", { count: "exact", head: true })
+      .eq("org_id", course.org_id).in("action", ["course.generated", "explainer.generated"]).gte("created_at", since);
+    if ((count ?? 0) >= MONTHLY_GENERATION_LIMIT)
+      throw new Error(`Your organization reached its limit of ${MONTHLY_GENERATION_LIMIT} AI generations in 30 days.`);
+
+    let policy = "";
+    if (course.document_id) {
+      const { data: doc } = await supabase.from("documents").select("extracted_text").eq("id", course.document_id).single();
+      policy = doc?.extracted_text?.slice(0, 80000) ?? "";
+    }
+    const c = (course.content ?? {}) as CourseContent;
+    const slides = (c.slides ?? []).map((s) => ({ id: s.id, title: s.title, layout: s.layout, bullets: s.bullets, body: s.body, notes: s.notes, source: s.source, has_clip: !!s.clip_path }));
+    const scenes = EXPLAINER_SCENES[data.length];
+    const words = data.length * 145;
+    const { structuredResponse } = await import("./ai.server");
+    const out = await structuredResponse<{ scenes: Omit<ExplainerScene, "id">[] }>({
+      instructions: EXPLAINER_RULES,
+      content: [
+        { type: "input_text", text: `Course "${course.title}"\nObjectives: ${JSON.stringify(c.objectives ?? [])}\nSlides: ${JSON.stringify(slides)}\nQuiz: ${JSON.stringify((c.quiz ?? []).map((q) => q.question))}` },
+        ...(policy ? [{ type: "input_text", text: `Source policy:\n${policy}` }] : []),
+        { type: "input_text", text: `Write the explainer now: exactly ${scenes} scenes, about ${words} narration words in total (about ${data.length} minutes). Tone: ${TONES[data.tone]}. ${data.illustrations ? "Use 2-4 illustration scenes." : "Do not use illustration scenes; scenarios get no illustration_prompt."} Only use clip_slide_id values from slides with has_clip true.` },
+      ],
+      schemaName: "explainer_script",
+      schema: explainerSchema,
+    });
+    const clipIds = new Set(slides.filter((s) => s.has_clip).map((s) => s.id));
+    await supabase.from("audit_events").insert({ org_id: course.org_id, actor: userId, actor_email: claims?.email ?? null, action: "explainer.generated", target: data.courseId });
+    return {
+      scenes: out.scenes
+        .filter((s) => data.illustrations || s.kind !== "illustration")
+        .map((s) => ({
+          ...s,
+          id: newId(),
+          illustration_prompt: data.illustrations ? s.illustration_prompt : null,
+          clip_slide_id: s.clip_slide_id && clipIds.has(s.clip_slide_id) ? s.clip_slide_id : null,
+          image_path: null,
+        })) as ExplainerScene[],
+    };
+  });
+
+export const makeIllustration = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string; sceneId: string; prompt: string; primary: string; accent: string }) => {
+    const prompt = (d.prompt ?? "").trim().slice(0, 600);
+    if (prompt.length < 8) throw new Error("Describe the picture in a sentence.");
+    if (!/^[\w-]+$/.test(d.sceneId ?? "")) throw new Error("Invalid scene");
+    const color = (c: string) => (/^#[0-9a-fA-F]{6}$/.test(c) ? c : "#1d4f63");
+    return { courseId: d.courseId, sceneId: d.sceneId, prompt, primary: color(d.primary), accent: color(d.accent) };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context as any;
+    const { data: course } = await supabase.from("courses").select("org_id").eq("id", data.courseId).single();
+    if (!course) throw new Error("Course not found.");
+    await assertEditor(supabase, course.org_id, userId);
+    const since = new Date(Date.now() - 30 * 864e5).toISOString();
+    const { count } = await supabase.from("audit_events").select("id", { count: "exact", head: true })
+      .eq("org_id", course.org_id).eq("action", "illustration.generated").gte("created_at", since);
+    if ((count ?? 0) >= MONTHLY_ILLUSTRATION_LIMIT)
+      throw new Error(`Your organization reached its limit of ${MONTHLY_ILLUSTRATION_LIMIT} illustrations in 30 days.`);
+    const { generateIllustration } = await import("./ai.server");
+    const bytes = await generateIllustration(
+      `Flat vector editorial illustration for a workplace training video: ${data.prompt} Clean modern style, soft shapes, gentle shading, a palette built around ${data.primary} and ${data.accent} with light neutral background, wide 3:2 composition with the main subject centered. No text, letters, numbers, signs, logos or brand names anywhere in the image.`,
+    );
+    const path = `${course.org_id}/explainer/${data.courseId}/${data.sceneId}-${Date.now()}.png`;
+    const up = await supabase.storage.from("documents").upload(path, bytes, { contentType: "image/png", upsert: true });
+    if (up.error) throw new Error(up.error.message);
+    await supabase.from("audit_events").insert({ org_id: course.org_id, actor: userId, actor_email: claims?.email ?? null, action: "illustration.generated", target: data.courseId });
+    return { path };
   });

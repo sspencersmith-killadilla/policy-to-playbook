@@ -18,3 +18,4 @@
 
 - Email: auth emails go through src/routes/lovable/email/auth/webhook.ts; app emails (e.g. team invites) are sent only from server functions via sendTemplateEmail, templates registered in src/lib/email-templates/registry.ts. Why: managed sending, no client-side send path.
 - src/start.ts middleware must pass /lovable/* through untouched. Why: signed email webhooks must not hit app redirects/error pages.
+- Explainer video: script lives in courses.content.explainer (saved without resetting approval); AI script/illustrations via ai.functions.ts; canvas scenes rendered and encoded in the browser by src/lib/explainer-render.ts, with pure timing helpers in src/lib/explainer.ts. Why: same browser-side export constraint as the narrated video.

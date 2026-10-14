@@ -76,7 +76,7 @@ export type RecordedVideo = { blob: Blob; ext: string; mime: string; chapters: C
 
 export async function exportScorm(
   title: string, content: CourseContent, brand: Brand, images: string[], passScore: number,
-  video?: { rec: RecordedVideo; requireFullView: boolean },
+  video?: { rec: RecordedVideo; requireFullView: boolean; vtt?: string; titles?: string[] },
 ) {
   const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
@@ -85,7 +85,7 @@ export async function exportScorm(
   if (video) {
     const vname = `video.${video.rec.ext}`;
     zip.file(vname, video.rec.blob);
-    zip.file("captions.vtt", buildVtt(content.slides, video.rec.chapters));
+    zip.file("captions.vtt", video.vtt ?? buildVtt(content.slides, video.rec.chapters));
     zip.file("chapters.json", JSON.stringify(video.rec.chapters));
     files = `<file href="${vname}"/><file href="captions.vtt"/><file href="chapters.json"/>`;
   } else {
@@ -107,7 +107,7 @@ export async function exportScorm(
     slides: content.slides.map((s) => ({ notes: s.notes })),
     quiz: content.quiz.map((q) => ({ q: q.question, o: q.options, c: q.correct_index, e: q.explanation })),
     pass: passScore,
-    video: video ? { src: `video.${video.rec.ext}`, mime: video.rec.mime.split(";")[0], req: video.requireFullView, ch: video.rec.chapters, titles: content.slides.map((s) => s.title) } : null,
+    video: video ? { src: `video.${video.rec.ext}`, mime: video.rec.mime.split(";")[0], req: video.requireFullView, ch: video.rec.chapters, titles: video.titles ?? content.slides.map((s) => s.title) } : null,
   };
   zip.file(
     "index.html",

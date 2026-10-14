@@ -235,10 +235,8 @@ function SlideForm({ slide, onChange, disabled, courseId }: { slide: Slide; onCh
       <Field label="Body text"><Textarea disabled={disabled} rows={3} value={slide.body ?? ""} onChange={(e) => set({ body: e.target.value || null })} /></Field>
       <Field label="Narration script">
         <Textarea disabled={disabled} rows={5} value={slide.notes} onChange={(e) => set({ notes: e.target.value })} />
-        <Button size="sm" variant="ghost" className="mt-1" onClick={preview} disabled={playing || !slide.notes.trim()}>
-          {playing ? <Loader2 className="animate-spin" /> : <Volume2 />} Hear voiceover
-        </Button>
       </Field>
+      <VoiceoverBox slide={slide} disabled={disabled} playing={playing} onPreviewAI={preview} onChange={(p) => set(p)} />
       <Field label="Policy source"><Input disabled={disabled} value={slide.source} onChange={(e) => set({ source: e.target.value })} /></Field>
       <SceneClip slide={slide} courseId={courseId} disabled={disabled} onChange={(p) => set(p)} />
       {!disabled && (
@@ -364,7 +362,7 @@ function ExportMenu({ courseId, title, content, approved, passScore }: { courseI
         const videoOpts = asVideo ? {
             slides: content.slides, images: imgs, signal: abort.current.signal,
             clips: await Promise.all(content.slides.map(async (s) => s.clip_path ? (await supabase.storage.from("documents").createSignedUrl(s.clip_path, 3600)).data?.signedUrl ?? null : null)),
-            narrate: async (text: string) => (await narrate({ data: { orgId: current!.org_id, text, voice: brand.voice } })).wavBase64,
+            narrate: async (text: string, slide: Slide) => slide.voice_path ? await recordingBase64(slide.voice_path) : (await narrate({ data: { orgId: current!.org_id, text, voice: brand.voice } })).wavBase64,
             onProgress: (msg: string, pct: number) => setJob({ msg: msg + eta(pct), pct: pct * (kind === "scorm" ? 0.95 : 1) }),
             width: W, height: W === 1920 ? 1080 : 720,
             onFallback: () => toast.info("This browser can't use fast video building, so the video will record in real time. Keep this tab open and in front."),
@@ -449,6 +447,106 @@ function ExportMenu({ courseId, title, content, approved, passScore }: { courseI
         </div>
       )}
     </>
+  );
+}
+
+async function recordingBase64(path: string): Promise<string> {
+  const { data, error } = await supabase.storage.from("documents").download(path);
+  if (error || !data) throw new Error("Could not load the recorded voiceover.");
+  const bytes = new Uint8Array(await data.arrayBuffer());
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+function VoiceoverBox({ slide, disabled, playing, onPreviewAI, onChange }: { slide: Slide; disabled: boolean; playing: boolean; onPreviewAI: () => void; onChange: (p: Partial<Slide>) => void }) {
+  const { current } = useOrg();
+  const [mode, setMode] = useState<"ai" | "own">(slide.voice_path ? "own" : "ai");
+  const [rec, setRec] = useState<MediaRecorder | null>(null);
+  const [secs, setSecs] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => { setMode(slide.voice_path ? "own" : "ai"); }, [slide.id]);
+  useEffect(() => {
+    setUrl(null);
+    if (!slide.voice_path) return;
+    supabase.storage.from("documents").createSignedUrl(slide.voice_path, 3600).then(({ data }) => setUrl(data?.signedUrl ?? null));
+  }, [slide.voice_path]);
+  useEffect(() => {
+    if (!rec) return;
+    const t = setInterval(() => setSecs((x) => x + 1), 1000);
+    return () => clearInterval(t);
+  }, [rec]);
+
+  async function save(blob: Blob) {
+    setUploading(true);
+    try {
+      const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";
+      const path = `${current!.org_id}/recordings/${slide.id}-${newId()}.${ext}`;
+      const up = await supabase.storage.from("documents").upload(path, blob, { contentType: blob.type || "audio/webm" });
+      if (up.error) throw new Error(up.error.message);
+      onChange({ voice_path: path });
+      toast.success("Recording saved");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setUploading(false);
+    }
+  }
+  async function start() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      const r = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+      r.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+      r.onstop = () => { stream.getTracks().forEach((t) => t.stop()); setRec(null); save(new Blob(chunks, { type: r.mimeType })); };
+      r.start();
+      setSecs(0);
+      setRec(r);
+    } catch {
+      toast.error("Couldn't use your microphone. Allow microphone access in your browser and try again.");
+    }
+  }
+  async function upload(f: File | undefined) {
+    if (!f) return;
+    if (!f.type.startsWith("audio/")) { toast.error("Choose an audio file."); return; }
+    if (f.size > 15 * 1024 * 1024) { toast.error("Audio files must be under 15 MB."); return; }
+    await save(f);
+  }
+
+  return (
+    <div className="rounded-md border bg-card p-3 space-y-2">
+      <Label>Voiceover</Label>
+      <div className="flex gap-4 text-sm">
+        <label className="flex items-center gap-1.5"><input type="radio" checked={mode === "ai"} disabled={disabled} onChange={() => { setMode("ai"); if (slide.voice_path) onChange({ voice_path: null }); }} /> AI voice</label>
+        <label className="flex items-center gap-1.5"><input type="radio" checked={mode === "own"} disabled={disabled} onChange={() => setMode("own")} /> My own recording</label>
+      </div>
+      {mode === "ai" ? (
+        <Button size="sm" variant="ghost" onClick={onPreviewAI} disabled={playing || !slide.notes.trim()}>
+          {playing ? <Loader2 className="animate-spin" /> : <Volume2 />} Hear AI voiceover
+        </Button>
+      ) : (
+        <div className="space-y-2">
+          {!disabled && <p className="text-xs text-muted-foreground">Read the narration script above aloud. Your recording is used in the video and SCORM exports instead of the AI voice.</p>}
+          {url && <audio controls src={url} className="w-full h-9" />}
+          {!disabled && (
+            <div className="flex flex-wrap items-center gap-2">
+              {rec ? (
+                <Button size="sm" variant="destructive" onClick={() => rec.stop()}>Stop recording ({Math.floor(secs / 60)}:{String(secs % 60).padStart(2, "0")})</Button>
+              ) : (
+                <Button size="sm" onClick={start} disabled={uploading}>{uploading ? <Loader2 className="animate-spin" /> : <Volume2 />} {slide.voice_path ? "Re-record" : "Record"}</Button>
+              )}
+              <label className="text-sm underline cursor-pointer text-muted-foreground">
+                or upload audio
+                <input type="file" accept="audio/*" className="hidden" disabled={!!rec || uploading} onChange={(e) => { upload(e.target.files?.[0]); e.target.value = ""; }} />
+              </label>
+              {slide.voice_path && !rec && <Button size="sm" variant="ghost" onClick={() => onChange({ voice_path: null })}>Remove</Button>}
+            </div>
+          )}
+          {!slide.voice_path && !rec && <p className="text-xs text-muted-foreground">No recording yet, so the AI voice is used for now.</p>}
+        </div>
+      )}
+    </div>
   );
 }
 

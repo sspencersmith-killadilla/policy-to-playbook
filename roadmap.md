@@ -6,3 +6,4 @@
 - [x] AI scene clips in narrated video
 - [x] Clip prompts written from narration
 - [x] SCORM with narrated video option
+- [x] Faster MP4 video builds (WebCodecs) with 1080p option

@@ -233,3 +233,42 @@ export const checkSceneClip = createServerFn({ method: "POST" })
     }
     return { status: "completed" as const, path, error: null };
   });
+
+const CLIP_PROMPT_RULES = `You write prompts for 6-second AI-generated video clips used in workplace training videos. Each clip plays just before a slide, while the slide's narration explains it.
+For each slide, write one scene description (40-90 words) that:
+- Shows ONE moment in ONE realistic workplace setting with ONE main action: who (generic roles like "an employee", "a supervisor"), where, and what visibly happens.
+- Illustrates the situation or the correct behavior described in the slide's narration and content. Prefer showing the right action.
+- Names exactly one camera move (e.g. "slow push-in", "locked-off medium shot", "slow pan left").
+- Describes body language and expressions so the moment reads without words.
+- Uses diverse, neutral casting and settings that fit the audience.
+- Contains NO dialogue, speech, captions, signs, readable text, logos, brand names, real or famous people, injuries, blood, weapons or violence.
+Return plain descriptive prose only, no quotes or labels.`;
+
+export const suggestClipPrompts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string; slides: Pick<Slide, "id" | "title" | "body" | "bullets" | "notes" | "layout">[] }) => {
+    const slides = (d.slides ?? []).slice(0, 18).map((s) => ({
+      id: String(s.id), layout: s.layout, title: String(s.title ?? "").slice(0, 200), body: String(s.body ?? "").slice(0, 800),
+      bullets: (s.bullets ?? []).slice(0, 6).map((b) => String(b).slice(0, 200)), notes: String(s.notes ?? "").slice(0, 1200),
+    }));
+    if (!slides.length) throw new Error("No slides to write prompts for.");
+    return { courseId: d.courseId, slides };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as any;
+    const { data: course } = await supabase.from("courses").select("org_id, title").eq("id", data.courseId).single();
+    if (!course) throw new Error("Course not found.");
+    await assertEditor(supabase, course.org_id, userId);
+    const { structuredResponse } = await import("./ai.server");
+    const out = await structuredResponse<{ prompts: { id: string; prompt: string }[] }>({
+      instructions: CLIP_PROMPT_RULES,
+      content: [{ type: "input_text", text: `Course: ${course.title}\n\nSlides (JSON):\n${JSON.stringify(data.slides)}\n\nWrite one prompt per slide, using each slide's id.` }],
+      schemaName: "clip_prompts",
+      schema: {
+        type: "object", additionalProperties: false, required: ["prompts"],
+        properties: { prompts: { type: "array", items: { type: "object", additionalProperties: false, required: ["id", "prompt"], properties: { id: { type: "string" }, prompt: { type: "string" } } } } },
+      },
+    });
+    const ids = new Set(data.slides.map((s) => s.id));
+    return out.prompts.filter((p) => ids.has(p.id) && p.prompt.trim()).map((p) => ({ id: p.id, prompt: p.prompt.trim().slice(0, 800) }));
+  });

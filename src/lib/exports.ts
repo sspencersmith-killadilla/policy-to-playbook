@@ -201,7 +201,7 @@ export async function exportVideo(opts: Parameters<typeof buildNarratedVideo>[0]
 /** Voices every slide, 3 at a time; a failure names the slide that broke. */
 async function narrateSlides(
   slides: Slide[],
-  narrate: (text: string) => Promise<string>,
+  narrate: (text: string, slide: Slide) => Promise<string>,
   decode: (b: ArrayBuffer) => Promise<AudioBuffer>,
   onProgress: (msg: string, pct: number) => void,
   signal: AbortSignal,
@@ -213,9 +213,9 @@ async function narrateSlides(
     if (signal.aborted) throw new Error("Cancelled");
     const text = slides[i]?.notes?.trim();
     let buf: AudioBuffer | null = null;
-    if (text) {
+    if (text || slides[i]?.voice_path) {
       try {
-        buf = await decode(b64ToArrayBuffer(await narrate(text)));
+        buf = await decode(b64ToArrayBuffer(await narrate(text ?? "", slides[i]!)));
       } catch (e: any) {
         if (signal.aborted) throw new Error("Cancelled");
         throw new Error(`Voiceover for slide ${i + 1} failed: ${e?.message ?? "unknown error"}`);
@@ -231,7 +231,7 @@ export async function recordNarratedVideo(opts: {
   slides: Slide[];
   images: string[];
   clips?: (string | null)[];
-  narrate: (text: string) => Promise<string>;
+  narrate: (text: string, slide: Slide) => Promise<string>;
   onProgress: (msg: string, pct: number) => void;
   signal: AbortSignal;
 }): Promise<RecordedVideo> {

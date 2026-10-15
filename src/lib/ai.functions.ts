@@ -182,7 +182,7 @@ export const narrateText = createServerFn({ method: "POST" })
     await assertMember(supabase, data.orgId, userId);
     const { synthesizeSpeech, toBase64 } = await import("./ai.server");
     const { narrationKey, isRetryableStatus } = await import("./narration");
-    const path = `${data.orgId}/narration/${await narrationKey(data.voice, data.text)}.wav`;
+    const path = `${data.orgId}/narration/v2-${await narrationKey(data.voice, data.text)}.wav`;
 
     // Reuse a saved voiceover when the script and voice are unchanged.
     const cached = await supabase.storage.from("documents").download(path);

@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
 import {
   EXPLAINER_KINDS, MAX_ILLUSTRATIONS_PER_VIDEO, newId, sceneUsesPicture,
-  VOICE_CHOICES, type CourseContent, type Explainer, type ExplainerKind, type ExplainerScene, type ExplainerTone,
+  VOICE_CHOICES, voiceLabel, type CourseContent, type Explainer, type ExplainerKind, type ExplainerScene, type ExplainerTone,
 } from "@/lib/course";
 import { makeIllustration, narrateText, writeExplainerScript } from "@/lib/ai.functions";
 import { Button } from "@/components/ui/button";
@@ -270,7 +270,7 @@ function SceneCard({ s, i, n, editable, illustrations, clipSlides, drawing, bran
           <Textarea rows={4} value={s.narration} disabled={!editable} onChange={(e) => onChange({ narration: e.target.value })} />
           <select aria-label="AI voice for this scene" className="h-8 w-full rounded-md border bg-background px-2 text-sm" value={s.voice ?? ""} disabled={!editable} onChange={(e) => onChange({ voice: e.target.value || null })}>
             <option value="">Voice: {brandVoice} (brand kit)</option>
-            {VOICE_CHOICES.map((v) => <option key={v} value={v}>Voice: {v}</option>)}
+            {VOICE_CHOICES.map((v) => <option key={v} value={v}>Voice: {voiceLabel(v)}</option>)}
           </select>
         </div>
         <div className="space-y-2">

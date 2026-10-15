@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
-import { canEdit, FONT_CHOICES, VOICE_CHOICES, type Brand, type Slide } from "@/lib/course";
+import { canEdit, FONT_CHOICES, VOICE_CHOICES, voiceLabel, type Brand, type Slide } from "@/lib/course";
 import { ScaledSlide, useBrandFonts } from "@/components/SlideView";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,7 +87,7 @@ function BrandPage() {
           <Label>Narrator voice</Label>
           <Select value={b.voice} disabled={!editable} onValueChange={(v) => set({ voice: v })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{VOICE_CHOICES.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+            <SelectContent>{VOICE_CHOICES.map((f) => <SelectItem key={f} value={f}>{voiceLabel(f)}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         {editable && <Button onClick={save} className="w-full">Save brand kit</Button>}

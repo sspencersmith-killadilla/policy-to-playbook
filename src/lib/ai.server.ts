@@ -93,7 +93,7 @@ export async function synthesizeSpeech(text: string, voice: string): Promise<str
     headers: { Authorization: `Bearer ${key()}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: TTS_MODEL,
-      contents: [{ role: "user", parts: [{ text: `Read in a clear, warm, professional training-narrator voice: ${text}` }] }],
+      contents: [{ role: "user", parts: [{ text: `Read this clearly at a natural pace: ${text}` }] }],
       generationConfig: {
         responseModalities: ["AUDIO"],
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },

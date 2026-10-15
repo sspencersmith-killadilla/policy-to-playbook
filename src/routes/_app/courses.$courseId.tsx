@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { ArrowDown, ArrowUp, Copy, Trash2, Plus, Sparkles, Play, Download, CheckCircle2, Volume2, Loader2, History, Clapperboard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
-import { canEdit, emptySlide, VOICE_CHOICES, LAYOUTS, newId, normalizeContent, type CourseContent, type Slide, type QuizQuestion } from "@/lib/course";
+import { canEdit, emptySlide, VOICE_CHOICES, voiceLabel, LAYOUTS, newId, normalizeContent, type CourseContent, type Slide, type QuizQuestion } from "@/lib/course";
 import { regenerateSlide, narrateText, startSceneClip, checkSceneClip, suggestClipPrompts } from "@/lib/ai.functions";
 import { exportPptx, exportScorm, exportVideo, buildNarratedVideo, renderSlideImages } from "@/lib/exports";
 import { ScaledSlide, SlideView, useBrandFonts } from "@/components/SlideView";
@@ -531,7 +531,7 @@ function VoiceoverBox({ slide, disabled, playing, onPreviewAI, onChange }: { sli
         <div className="flex flex-wrap items-center gap-2">
         <select aria-label="AI voice" className="h-8 rounded-md border bg-background px-2 text-sm" value={slide.voice ?? ""} disabled={disabled} onChange={(e) => onChange({ voice: e.target.value || null })}>
           <option value="">Brand kit voice</option>
-          {VOICE_CHOICES.map((v) => <option key={v} value={v}>{v}</option>)}
+          {VOICE_CHOICES.map((v) => <option key={v} value={v}>{voiceLabel(v)}</option>)}
         </select>
         <Button size="sm" variant="ghost" onClick={onPreviewAI} disabled={playing || !slide.notes.trim()}>
           {playing ? <Loader2 className="animate-spin" /> : <Volume2 />} Hear AI voiceover

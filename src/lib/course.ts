@@ -61,7 +61,22 @@ export const DEFAULT_BRAND: Brand = {
 };
 
 export const FONT_CHOICES = ["Fraunces", "Work Sans", "Playfair Display", "IBM Plex Sans", "Merriweather", "Space Grotesk", "Lora", "Archivo"];
-export const VOICE_CHOICES = ["Kore", "Puck", "Charon", "Aoede", "Fenrir", "Leda"];
+export const VOICE_LABELS: Record<string, string> = {
+  Kore: "Kore (female, firm)",
+  Aoede: "Aoede (female, breezy)",
+  Leda: "Leda (female, youthful)",
+  Gacrux: "Gacrux (female, mature)",
+  Sulafat: "Sulafat (female, warm)",
+  Puck: "Puck (male, upbeat)",
+  Charon: "Charon (male, informative)",
+  Fenrir: "Fenrir (male, energetic)",
+  Orus: "Orus (male, firm)",
+  Algenib: "Algenib (male, gravelly)",
+  Achird: "Achird (male, friendly)",
+  Enceladus: "Enceladus (male, soft)",
+};
+export const VOICE_CHOICES = Object.keys(VOICE_LABELS);
+export const voiceLabel = (v: string) => VOICE_LABELS[v] ?? v;
 
 export const LAYOUTS: { value: SlideLayout; label: string }[] = [
   { value: "title", label: "Title" },

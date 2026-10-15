@@ -79,7 +79,7 @@ function BrandPage() {
             <Label>{k === "heading_font" ? "Heading font" : "Body font"}</Label>
             <Select value={b[k]} disabled={!editable} onValueChange={(v) => set({ [k]: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{FONT_CHOICES.map((f) => <SelectItem key={f} value={f}>{voiceLabel(f)}</SelectItem>)}</SelectContent>
+              <SelectContent>{FONT_CHOICES.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
             </Select>
           </div>
         ))}

@@ -1,3 +1,4 @@
+import { VOICE_CHOICES } from "@/lib/course";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -216,7 +217,7 @@ function SlideForm({ slide, onChange, disabled, courseId }: { slide: Slide; onCh
   async function preview() {
     setPlaying(true);
     try {
-      const { wavBase64 } = await narrate({ data: { orgId: current!.org_id, text: slide.notes, voice: brand.voice } });
+      const { wavBase64 } = await narrate({ data: { orgId: current!.org_id, text: slide.notes, voice: slide.voice || brand.voice } });
       const a = new Audio(`data:audio/wav;base64,${wavBase64}`);
       a.onended = () => setPlaying(false);
       await a.play();
@@ -368,7 +369,7 @@ function ExportMenu({ courseId, title, content, approved, passScore }: { courseI
         const videoOpts = asVideo ? {
             slides: content.slides, images: imgs, signal: abort.current.signal,
             clips: await Promise.all(content.slides.map(async (s) => s.clip_path ? (await supabase.storage.from("documents").createSignedUrl(s.clip_path, 3600)).data?.signedUrl ?? null : null)),
-            narrate: async (text: string, slide: Slide) => slide.voice_path ? await recordingBase64(slide.voice_path) : (await narrate({ data: { orgId: current!.org_id, text, voice: brand.voice } })).wavBase64,
+            narrate: async (text: string, slide: Slide) => slide.voice_path ? await recordingBase64(slide.voice_path) : (await narrate({ data: { orgId: current!.org_id, text, voice: slide.voice || brand.voice } })).wavBase64,
             onProgress: (msg: string, pct: number) => setJob({ msg: msg + eta(pct), pct: pct * (kind === "scorm" ? 0.95 : 1) }),
             width: W, height: W === 1920 ? 1080 : 720,
             onFallback: () => toast.info("This browser can't use fast video building, so the video will record in real time. Keep this tab open and in front."),
@@ -528,9 +529,15 @@ function VoiceoverBox({ slide, disabled, playing, onPreviewAI, onChange }: { sli
         <label className="flex items-center gap-1.5"><input type="radio" checked={mode === "own"} disabled={disabled} onChange={() => setMode("own")} /> My own recording</label>
       </div>
       {mode === "ai" ? (
+        <div className="flex flex-wrap items-center gap-2">
+        <select aria-label="AI voice" className="h-8 rounded-md border bg-background px-2 text-sm" value={slide.voice ?? ""} disabled={disabled} onChange={(e) => onChange({ voice: e.target.value || null })}>
+          <option value="">Brand kit voice</option>
+          {VOICE_CHOICES.map((v) => <option key={v} value={v}>{v}</option>)}
+        </select>
         <Button size="sm" variant="ghost" onClick={onPreviewAI} disabled={playing || !slide.notes.trim()}>
           {playing ? <Loader2 className="animate-spin" /> : <Volume2 />} Hear AI voiceover
         </Button>
+        </div>
       ) : (
         <div className="space-y-2">
           {!disabled && <p className="text-xs text-muted-foreground">Read the narration script above aloud. Your recording is used in the video and SCORM exports instead of the AI voice.</p>}

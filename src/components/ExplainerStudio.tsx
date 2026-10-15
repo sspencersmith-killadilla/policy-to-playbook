@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
 import {
   EXPLAINER_KINDS, MAX_ILLUSTRATIONS_PER_VIDEO, newId, sceneUsesPicture,
-  type CourseContent, type Explainer, type ExplainerKind, type ExplainerScene, type ExplainerTone,
+  VOICE_CHOICES, type CourseContent, type Explainer, type ExplainerKind, type ExplainerScene, type ExplainerTone,
 } from "@/lib/course";
 import { makeIllustration, narrateText, writeExplainerScript } from "@/lib/ai.functions";
 import { Button } from "@/components/ui/button";
@@ -126,7 +126,7 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
       const rec = await buildExplainerVideo({
         scenes, brand, pictures, clips, signal, width: W, height: W === 1920 ? 1080 : 720,
         burnCaptions: kind === "mp4",
-        narrate: async (text) => (await narrate({ data: { orgId: current!.org_id, text, voice: brand.voice } })).wavBase64,
+        narrate: async (text, sc) => (await narrate({ data: { orgId: current!.org_id, text, voice: sc.voice || brand.voice } })).wavBase64,
         onProgress: (msg, p) => {
           const pct = 30 + p * 0.68;
           const left = p > 40 ? ((Date.now() - t0) / p) * (100 - p) / 1000 : 0;
@@ -179,7 +179,7 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
               <input type="checkbox" className="mt-1" disabled={!editable || !clipSlides.length} checked={ex.includeClips && !!clipSlides.length} onChange={(e) => change((x) => ({ ...x, includeClips: e.target.checked }))} />
               <span><strong>Use my AI video clips</strong><span className="block text-muted-foreground">{clipSlides.length ? `${clipSlides.length} clip${clipSlides.length > 1 ? "s" : ""} can play behind matching scenario scenes.` : "No slides have video clips yet."}</span></span>
             </label>
-            <p className="text-xs text-muted-foreground sm:col-span-2">Voice: <strong>{brand.voice}</strong> (change it in Brand kit).</p>
+            <p className="text-xs text-muted-foreground sm:col-span-2">Default voice: <strong>{brand.voice}</strong> (change it in Brand kit). You can pick a different voice for any scene below.</p>
             {editable && (
               <Button className="sm:col-span-2" onClick={writeScript} disabled={writing}>
                 {writing ? <><Loader2 className="animate-spin" /> Writing script… (up to a minute)</> : <><Sparkles /> {ex.scenes.length ? "Rewrite script" : "Write script"}</>}
@@ -196,7 +196,8 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
               {ex.scenes.map((s, i) => (
                 <SceneCard key={s.id} s={s} i={i} n={ex.scenes.length} editable={editable} illustrations={ex.illustrations}
                   clipSlides={ex.includeClips ? clipSlides.map((c) => ({ id: c.id, title: c.title })) : []}
-                  drawing={drawing === s.id}
+                  drawing={drawing === s.id} brandVoice={brand.voice}
+                  onUpload={async (f) => { try { if (!f.type.startsWith("image/")) throw new Error("Choose a photo or image file."); if (f.size > 10e6) throw new Error("Photos can be up to 10 MB."); const ext = (f.name.split(".").pop() || "jpg").replace(/[^a-z0-9]/gi, "").slice(0, 5); const path = `${current!.org_id}/explainer-photos/${s.id}-${newId()}.${ext}`; const up = await supabase.storage.from("documents").upload(path, f, { contentType: f.type }); if (up.error) throw new Error(up.error.message); setScene(s.id, { image_path: path }); toast.success("Photo added"); } catch (e: any) { toast.error(e.message ?? "Upload failed"); } }}
                   onChange={(p) => setScene(s.id, p)} onMove={(d) => move(i, d)}
                   onDelete={() => change((e) => ({ ...e, scenes: e.scenes.filter((x) => x.id !== s.id) }))}
                   onDraw={async () => { try { const p = await drawPicture(s); if (p) setScene(s.id, { image_path: p }); } catch (e: any) { toast.error(e.message ?? "Picture failed"); } }} />
@@ -239,9 +240,9 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
   );
 }
 
-function SceneCard({ s, i, n, editable, illustrations, clipSlides, drawing, onChange, onMove, onDelete, onDraw }: {
-  s: ExplainerScene; i: number; n: number; editable: boolean; illustrations: boolean; clipSlides: { id: string; title: string }[]; drawing: boolean;
-  onChange: (p: Partial<ExplainerScene>) => void; onMove: (d: number) => void; onDelete: () => void; onDraw: () => void;
+function SceneCard({ s, i, n, editable, illustrations, clipSlides, drawing, brandVoice, onChange, onMove, onDelete, onDraw, onUpload }: {
+  s: ExplainerScene; i: number; n: number; editable: boolean; illustrations: boolean; clipSlides: { id: string; title: string }[]; drawing: boolean; brandVoice: string;
+  onChange: (p: Partial<ExplainerScene>) => void; onMove: (d: number) => void; onDelete: () => void; onDraw: () => void; onUpload: (f: File) => Promise<void>;
 }) {
   const pic = useQuery({ queryKey: ["signed", s.image_path], enabled: !!s.image_path, queryFn: () => signed(s.image_path), staleTime: 30 * 60e3 });
   const lines = (v: string) => v.split("\n").map((x) => x.trim()).filter(Boolean);
@@ -267,6 +268,10 @@ function SceneCard({ s, i, n, editable, illustrations, clipSlides, drawing, onCh
         <div className="space-y-1">
           <Label className="text-xs">Narration</Label>
           <Textarea rows={4} value={s.narration} disabled={!editable} onChange={(e) => onChange({ narration: e.target.value })} />
+          <select aria-label="AI voice for this scene" className="h-8 w-full rounded-md border bg-background px-2 text-sm" value={s.voice ?? ""} disabled={!editable} onChange={(e) => onChange({ voice: e.target.value || null })}>
+            <option value="">Voice: {brandVoice} (brand kit)</option>
+            {VOICE_CHOICES.map((v) => <option key={v} value={v}>Voice: {v}</option>)}
+          </select>
         </div>
         <div className="space-y-2">
           {s.kind === "quote" ? (
@@ -304,7 +309,15 @@ function SceneCard({ s, i, n, editable, illustrations, clipSlides, drawing, onCh
                 {editable && <Button size="sm" variant="outline" disabled={drawing} onClick={onDraw}>{drawing ? <><Loader2 className="animate-spin" /> Drawing… (about 30 sec)</> : <><Sparkles /> {s.image_path ? "Redraw picture" : "Draw picture"}</>}</Button>}
               </>
             )}
-            {!illustrations && !s.clip_slide_id && <p className="text-xs text-muted-foreground">Illustrations are off, so this scene uses a brand-color background.</p>}
+            {editable && !s.clip_slide_id && (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="outline" asChild>
+                  <label className="cursor-pointer"><Upload /> {s.image_path ? "Replace with my photo" : "Upload my own photo"}<input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void onUpload(f); }} /></label>
+                </Button>
+                {s.image_path && <Button size="sm" variant="ghost" onClick={() => onChange({ image_path: null })}>Remove picture</Button>}
+              </div>
+            )}
+            {!illustrations && !s.clip_slide_id && !s.image_path && <p className="text-xs text-muted-foreground">AI illustrations are off. Upload a photo, or this scene uses a brand-color background.</p>}
           </div>
         </div>
       )}

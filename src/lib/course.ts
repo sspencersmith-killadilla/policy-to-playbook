@@ -14,6 +14,8 @@ export type Slide = {
   clip_prompt?: string | null;
   /** Optional voiceover recorded by the user (storage path); used instead of the AI voice. */
   voice_path?: string | null;
+  /** AI voice for this slide; empty uses the brand kit voice. */
+  voice?: string | null;
 };
 
 export type QuizQuestion = {
@@ -122,6 +124,8 @@ export type ExplainerScene = {
   image_path?: string | null;
   /** Slide whose AI scene clip plays behind this scene. */
   clip_slide_id?: string | null;
+  /** AI voice for this scene; empty uses the brand kit voice. */
+  voice?: string | null;
 };
 
 export type ExplainerTone = "friendly" | "formal" | "plain";

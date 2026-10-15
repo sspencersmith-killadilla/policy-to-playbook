@@ -334,7 +334,7 @@ export async function buildExplainerVideo(opts: {
   brand: Brand;
   pictures: (string | null)[];
   clips: (string | null)[];
-  narrate: (text: string) => Promise<string>;
+  narrate: (text: string, scene: ExplainerScene) => Promise<string>;
   onProgress: (msg: string, pct: number) => void;
   signal: AbortSignal;
   width: number;
@@ -356,7 +356,7 @@ export async function buildExplainerVideo(opts: {
     const text = scenes[i]!.narration.trim();
     let buf: AudioBuffer | null = null;
     if (text) {
-      try { buf = await decodeCtx.decodeAudioData(b64ToArrayBuffer(await opts.narrate(text))); }
+      try { buf = await decodeCtx.decodeAudioData(b64ToArrayBuffer(await opts.narrate(text, scenes[i]!))); }
       catch (e: any) { check(); throw new Error(`Voiceover for scene ${i + 1} failed: ${e?.message ?? "unknown error"}`); }
     }
     done++;

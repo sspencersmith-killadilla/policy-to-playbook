@@ -146,7 +146,8 @@ function Guide() {
         <ol>
           <li>Choose a <b>Length</b> (about 2, 4 or 6 minutes) and <b>Tone</b>. Leave <b>AI illustrations</b> on for drawn pictures (each uses AI credits), or turn it off for shapes and diagrams only. If slides have AI video clips, <b>Use my AI video clips</b> lets them play behind scenario scenes.</li>
           <li>Click <b>Write script</b>. Read every scene. You can change the narration, the on-screen words, the scene type, the order, or delete and add scenes. Changes save on their own and don't undo approval.</li>
-          <li>For picture scenes, press <b>Draw picture</b> to preview it, or let Relay draw any missing ones when you build.</li>
+          <li>For picture scenes, press <b>Draw picture</b>, or <b>Upload my own photo</b>. Choose a focal point on the original photo or with the focal-point sliders, and adjust <b>Zoom</b>. The <b>Video crop</b> preview shows the framing used in MP4 and SCORM exports. <b>Reset photo framing</b> restores the centered view.</li>
+          <li>Under each scene's <b>Voiceover</b>, pick an AI voice or press <b>Upload my audio</b> (MP3, WAV, or another browser-playable audio file, under 15 MB). Play it back, replace it, or remove it to return to AI narration. The scene lasts as long as your audio; keep the written narration matched to your recording for captions.</li>
           <li>Once the course is approved, click <b>Download MP4</b> (captions are shown on screen) or <b>SCORM package with quiz</b> (captions can be turned on in the player, and learners take the quiz after watching).</li>
         </ol>
         <Tip>Writing a script counts toward the 30 AI generations every 30 days. An explainer can use up to 15 illustrations, and each organization can draw up to 60 every 30 days.</Tip>

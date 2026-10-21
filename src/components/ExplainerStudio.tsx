@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
 import {
   EXPLAINER_KINDS, MAX_ILLUSTRATIONS_PER_VIDEO, newId, sceneUsesPicture,
-  VOICE_CHOICES, voiceLabel, type CourseContent, type Explainer, type ExplainerKind, type ExplainerScene, type ExplainerTone,
+   type CourseContent, type Explainer, type ExplainerKind, type ExplainerScene, type ExplainerTone,
 } from "@/lib/course";
 import { makeIllustration, narrateText, writeExplainerScript } from "@/lib/ai.functions";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PhotoFraming } from "@/components/PhotoFraming";
+import { ExplainerAudio } from "@/components/ExplainerAudio";
 
 const DEFAULTS: Explainer = { length: 4, tone: "friendly", illustrations: true, includeClips: true, scenes: [] };
 const safeName = (s: string) => s.replace(/[^\w-]+/g, "_").slice(0, 60) || "course";
@@ -95,6 +97,7 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
 
   async function build(kind: "mp4" | "scorm") {
     if (!approved) { toast.error("Approve the course before exporting."); return; }
+    if (!current) { toast.error("Choose your organization first."); return; }
     if (!ex.scenes.length) { toast.error("Write the script first."); return; }
     abort.current = new AbortController();
     const signal = abort.current.signal;
@@ -119,14 +122,20 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
       }
       setJob({ msg: "Getting ready…", pct: 30 });
       const pictures = await Promise.all(scenes.map((s) => signed(s.image_path)));
+      const recordings = await Promise.all(scenes.map(async (s) => {
+        if (!s.voice_path) return null;
+        const url = await signed(s.voice_path);
+        if (!url) throw new Error(`Couldn't load audio for scene "${s.heading}".`);
+        return url;
+      }));
       const clips = await Promise.all(scenes.map((s) => ex.includeClips && s.clip_slide_id ? signed(content.slides.find((x) => x.id === s.clip_slide_id)?.clip_path) : Promise.resolve(null)));
       const { buildExplainerVideo } = await import("@/lib/explainer-render");
       const W = hd ? 1920 : 1280;
       const t0 = Date.now();
       const rec = await buildExplainerVideo({
-        scenes, brand, pictures, clips, signal, width: W, height: W === 1920 ? 1080 : 720,
+        scenes, brand, pictures, recordings, clips, signal, width: W, height: W === 1920 ? 1080 : 720,
         burnCaptions: kind === "mp4",
-        narrate: async (text, sc) => (await narrate({ data: { orgId: current!.org_id, text, voice: sc.voice || brand.voice } })).wavBase64,
+        narrate: async (text, sc) => (await narrate({ data: { orgId: current.org_id, text, voice: sc.voice || brand.voice } })).wavBase64,
         onProgress: (msg, p) => {
           const pct = 30 + p * 0.68;
           const left = p > 40 ? ((Date.now() - t0) / p) * (100 - p) / 1000 : 0;
@@ -140,7 +149,7 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
         setJob({ msg: "Packaging SCORM file…", pct: 98 });
         await exportScorm(title, content, brand, [], passScore, { rec, requireFullView: requireView, vtt: rec.vtt, titles: rec.titles });
       }
-      await logAudit(current!.org_id, `course.exported.explainer_${kind}`, courseId);
+      await logAudit(current.org_id, `course.exported.explainer_${kind}`, courseId);
       toast.success("Explainer video downloaded");
     } catch (e: any) {
       if (e.message !== "Cancelled") toast.error(e.message ?? "Build failed");
@@ -197,10 +206,27 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
                 <SceneCard key={s.id} s={s} i={i} n={ex.scenes.length} editable={editable} illustrations={ex.illustrations}
                   clipSlides={ex.includeClips ? clipSlides.map((c) => ({ id: c.id, title: c.title })) : []}
                   drawing={drawing === s.id} brandVoice={brand.voice}
-                  onUpload={async (f) => { try { if (!f.type.startsWith("image/")) throw new Error("Choose a photo or image file."); if (f.size > 10e6) throw new Error("Photos can be up to 10 MB."); const ext = (f.name.split(".").pop() || "jpg").replace(/[^a-z0-9]/gi, "").slice(0, 5); const path = `${current!.org_id}/explainer-photos/${s.id}-${newId()}.${ext}`; const up = await supabase.storage.from("documents").upload(path, f, { contentType: f.type }); if (up.error) throw new Error(up.error.message); setScene(s.id, { image_path: path }); toast.success("Photo added"); } catch (e: any) { toast.error(e.message ?? "Upload failed"); } }}
+                  onUpload={async (f) => { try { if (!current) throw new Error("Choose your organization first."); if (!f.type.startsWith("image/")) throw new Error("Choose a photo or image file."); if (f.size > 10e6) throw new Error("Photos can be up to 10 MB."); const ext = (f.name.split(".").pop() || "jpg").replace(/[^a-z0-9]/gi, "").slice(0, 5); const path = `${current.org_id}/explainer-photos/${s.id}-${newId()}.${ext}`; const up = await supabase.storage.from("documents").upload(path, f, { contentType: f.type }); if (up.error) throw new Error(up.error.message); setScene(s.id, { image_path: path, image_frame: null }); toast.success("Photo added"); } catch (e: any) { toast.error(e.message ?? "Upload failed"); } }}
+                  onUploadAudio={async (f) => {
+                    try {
+                      if (!current) throw new Error("Choose your organization first.");
+                      if (!f.type.startsWith("audio/")) throw new Error("Choose an audio file.");
+                      if (f.size > 15 * 1024 * 1024) throw new Error("Audio files must be under 15 MB.");
+                      const ctx = new AudioContext();
+                      try { await ctx.decodeAudioData(await f.arrayBuffer()); }
+                      catch { throw new Error("This browser can't play that audio. Try MP3 or WAV."); }
+                      finally { await ctx.close(); }
+                      const ext = (f.name.split(".").pop() || "wav").replace(/[^a-z0-9]/gi, "").slice(0, 5);
+                      const path = `${current.org_id}/recordings/${s.id}-${newId()}.${ext}`;
+                      const up = await supabase.storage.from("documents").upload(path, f, { contentType: f.type });
+                      if (up.error) throw new Error(up.error.message);
+                      setScene(s.id, { voice_path: path });
+                      toast.success("Scene audio added");
+                    } catch (e: any) { toast.error(e.message ?? "Audio upload failed"); }
+                  }}
                   onChange={(p) => setScene(s.id, p)} onMove={(d) => move(i, d)}
                   onDelete={() => change((e) => ({ ...e, scenes: e.scenes.filter((x) => x.id !== s.id) }))}
-                  onDraw={async () => { try { const p = await drawPicture(s); if (p) setScene(s.id, { image_path: p }); } catch (e: any) { toast.error(e.message ?? "Picture failed"); } }} />
+                  onDraw={async () => { try { const p = await drawPicture(s); if (p) setScene(s.id, { image_path: p, image_frame: null }); } catch (e: any) { toast.error(e.message ?? "Picture failed"); } }} />
               ))}
               {editable && (
                 <Button variant="outline" size="sm" onClick={() => change((e) => ({ ...e, scenes: [...e.scenes, { id: newId(), kind: "points", narration: "", heading: "New scene", items: [], items2: [], quote: null, source: null, illustration_prompt: null, image_path: null, clip_slide_id: null }] }))}>
@@ -240,11 +266,13 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
   );
 }
 
-function SceneCard({ s, i, n, editable, illustrations, clipSlides, drawing, brandVoice, onChange, onMove, onDelete, onDraw, onUpload }: {
+function SceneCard({ s, i, n, editable, illustrations, clipSlides, drawing, brandVoice, onChange, onMove, onDelete, onDraw, onUpload, onUploadAudio }: {
   s: ExplainerScene; i: number; n: number; editable: boolean; illustrations: boolean; clipSlides: { id: string; title: string }[]; drawing: boolean; brandVoice: string;
   onChange: (p: Partial<ExplainerScene>) => void; onMove: (d: number) => void; onDelete: () => void; onDraw: () => void; onUpload: (f: File) => Promise<void>;
+  onUploadAudio: (f: File) => Promise<void>;
 }) {
   const pic = useQuery({ queryKey: ["signed", s.image_path], enabled: !!s.image_path, queryFn: () => signed(s.image_path), staleTime: 30 * 60e3 });
+  const audio = useQuery({ queryKey: ["signed", s.voice_path], enabled: !!s.voice_path, queryFn: () => signed(s.voice_path), staleTime: 30 * 60e3 });
   const lines = (v: string) => v.split("\n").map((x) => x.trim()).filter(Boolean);
   const itemsLabel = s.kind === "dodont" ? "Do (one per line)" : s.kind === "steps" ? "Steps (one per line)" : s.kind === "scenario" ? "What to do (one per line)" : s.kind === "fact" || s.kind === "title" || s.kind === "illustration" || s.kind === "quote" ? "Subtitle (optional)" : "On-screen points (one per line)";
   return (
@@ -268,10 +296,7 @@ function SceneCard({ s, i, n, editable, illustrations, clipSlides, drawing, bran
         <div className="space-y-1">
           <Label className="text-xs">Narration</Label>
           <Textarea rows={4} value={s.narration} disabled={!editable} onChange={(e) => onChange({ narration: e.target.value })} />
-          <select aria-label="AI voice for this scene" className="h-8 w-full rounded-md border bg-background px-2 text-sm" value={s.voice ?? ""} disabled={!editable} onChange={(e) => onChange({ voice: e.target.value || null })}>
-            <option value="">Voice: {brandVoice} (brand kit)</option>
-            {VOICE_CHOICES.map((v) => <option key={v} value={v}>Voice: {voiceLabel(v)}</option>)}
-          </select>
+          <ExplainerAudio scene={s} url={audio.data} editable={editable} brandVoice={brandVoice} onChange={onChange} onUpload={onUploadAudio} />
         </div>
         <div className="space-y-2">
           {s.kind === "quote" ? (
@@ -314,9 +339,10 @@ function SceneCard({ s, i, n, editable, illustrations, clipSlides, drawing, bran
                 <Button size="sm" variant="outline" asChild>
                   <label className="cursor-pointer"><Upload /> {s.image_path ? "Replace with my photo" : "Upload my own photo"}<input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void onUpload(f); }} /></label>
                 </Button>
-                {s.image_path && <Button size="sm" variant="ghost" onClick={() => onChange({ image_path: null })}>Remove picture</Button>}
+                 {s.image_path && <Button size="sm" variant="ghost" onClick={() => onChange({ image_path: null, image_frame: null })}>Remove picture</Button>}
               </div>
             )}
+             {pic.data && !s.clip_slide_id && <PhotoFraming url={pic.data} frame={s.image_frame} disabled={!editable} onChange={(image_frame) => onChange({ image_frame })} />}
             {!illustrations && !s.clip_slide_id && !s.image_path && <p className="text-xs text-muted-foreground">AI illustrations are off. Upload a photo, or this scene uses a brand-color background.</p>}
           </div>
         </div>

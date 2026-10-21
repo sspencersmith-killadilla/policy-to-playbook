@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { normalizePhotoFrame, photoCoverRect, type PhotoFrame } from "@/lib/explainer";
 
-export function PhotoFraming({ url, frame, disabled, onChange }: { url: string; frame?: PhotoFrame | null; disabled: boolean; onChange: (frame: PhotoFrame) => void }) {
+export function PhotoFraming({ url, frame, disabled, onChange }: { url: string; frame?: PhotoFrame | null | undefined; disabled: boolean; onChange: (frame: PhotoFrame) => void }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const source = useRef<HTMLCanvasElement>(null);
   const f = normalizePhotoFrame(frame);

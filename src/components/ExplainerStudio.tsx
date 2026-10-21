@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
 import {
   EXPLAINER_KINDS, MAX_ILLUSTRATIONS_PER_VIDEO, newId, sceneUsesPicture,
-  VOICE_CHOICES, voiceLabel, type CourseContent, type Explainer, type ExplainerKind, type ExplainerScene, type ExplainerTone,
+   type CourseContent, type Explainer, type ExplainerKind, type ExplainerScene, type ExplainerTone,
 } from "@/lib/course";
 import { makeIllustration, narrateText, writeExplainerScript } from "@/lib/ai.functions";
 import { Button } from "@/components/ui/button";

@@ -274,7 +274,7 @@ class Painter {
         if (visual) {
           const sw = a.clip?.videoWidth ?? a.pic?.width ?? W, sh = a.clip?.videoHeight ?? a.pic?.height ?? H;
           const p = clamp(t / d);
-          if (!a.clip && sc.image_frame) {
+          if (!a.clip) {
             const r = photoCoverRect(sw, sh, W, H, sc.image_frame);
             ctx.drawImage(visual, r.x, r.y, r.width, r.height);
           } else cover(ctx, visual, sw, sh, W, H, 1.04 + 0.1 * p, (p - 0.5) * -40 * S);

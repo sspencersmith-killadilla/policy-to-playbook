@@ -7,3 +7,6 @@
 - [x] Clip prompts written from narration
 - [x] SCORM with narrated video option
 - [x] Faster MP4 video builds (WebCodecs) with 1080p option
+
+- [ ] Explainer scene audio uploads
+- [ ] Explainer photo focal point and zoom controls

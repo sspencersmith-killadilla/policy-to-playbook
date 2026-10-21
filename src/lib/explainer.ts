@@ -1,5 +1,29 @@
 // Pure timing helpers for the explainer video (shared by the renderer, captions and tests).
 
+export type PhotoFrame = { x: number; y: number; zoom: number };
+export function normalizePhotoFrame(frame?: Partial<PhotoFrame> | null): PhotoFrame {
+  const finite = (v: number | undefined, fallback: number) => typeof v === "number" && Number.isFinite(v) ? v : fallback;
+  return {
+    x: Math.max(0, Math.min(1, finite(frame?.x, 0.5))),
+    y: Math.max(0, Math.min(1, finite(frame?.y, 0.5))),
+    zoom: Math.max(1, Math.min(3, finite(frame?.zoom, 1))),
+  };
+}
+
+/** Covers the video without blank edges, keeping the selected source point centered where possible. */
+export function photoCoverRect(sw: number, sh: number, width: number, height: number, frame?: Partial<PhotoFrame> | null) {
+  const f = normalizePhotoFrame(frame);
+  const scale = Math.max(width / sw, height / sh) * f.zoom;
+  const w = sw * scale, h = sh * scale;
+  return { x: Math.max(width - w, Math.min(0, width / 2 - f.x * w)), y: Math.max(height - h, Math.min(0, height / 2 - f.y * h)), width: w, height: h };
+}
+
+/** Uploaded audio is authoritative, including when the written script is empty. */
+export async function sceneNarration<T>(scene: { narration: string; voice_path?: string | null }, uploaded: () => Promise<T>, ai: () => Promise<T>): Promise<T | null> {
+  if (scene.voice_path) return uploaded();
+  return scene.narration.trim() ? ai() : null;
+}
+
 /** A scene lasts as long as its narration plus a short pause, never under 3 seconds. */
 export function sceneDuration(narrationSeconds: number | null | undefined): number {
   return Math.max(3, (narrationSeconds ?? 0) + 0.8);

@@ -141,6 +141,10 @@ export type ExplainerScene = {
   clip_slide_id?: string | null;
   /** AI voice for this scene; empty uses the brand kit voice. */
   voice?: string | null;
+  /** Uploaded scene narration in the private documents bucket; overrides AI. */
+  voice_path?: string | null;
+  /** Photo focal point in normalized source-image coordinates and cover zoom. */
+  image_frame?: { x: number; y: number; zoom: number } | null;
 };
 
 export type ExplainerTone = "friendly" | "formal" | "plain";

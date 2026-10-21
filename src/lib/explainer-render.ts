@@ -1,7 +1,7 @@
 // Browser-only renderer for the explainer video: animated canvas scenes + narration, encoded to MP4.
 import type { Brand, ExplainerScene } from "./course";
 import type { Chapter, RecordedVideo } from "./exports";
-import { captionCues, cuesToVtt, revealTimes, sceneDuration, type Cue } from "./explainer";
+import { captionCues, cuesToVtt, photoCoverRect, revealTimes, sceneDuration, sceneNarration, type Cue } from "./explainer";
 
 export type ExplainerVideo = RecordedVideo & { vtt: string; titles: string[] };
 
@@ -272,9 +272,12 @@ class Painter {
       case "scenario": {
         const visual = a.clip ?? a.pic;
         if (visual) {
-          const sw = a.clip ? a.clip.videoWidth : a.pic!.width, sh = a.clip ? a.clip.videoHeight : a.pic!.height;
+          const sw = a.clip?.videoWidth ?? a.pic?.width ?? W, sh = a.clip?.videoHeight ?? a.pic?.height ?? H;
           const p = clamp(t / d);
-          cover(ctx, visual, sw, sh, W, H, 1.04 + 0.1 * p, (p - 0.5) * -40 * S);
+          if (!a.clip && sc.image_frame) {
+            const r = photoCoverRect(sw, sh, W, H, sc.image_frame);
+            ctx.drawImage(visual, r.x, r.y, r.width, r.height);
+          } else cover(ctx, visual, sw, sh, W, H, 1.04 + 0.1 * p, (p - 0.5) * -40 * S);
         } else {
           const g = ctx.createLinearGradient(0, 0, W, H);
           g.addColorStop(0, brand.primary_color); g.addColorStop(1, brand.accent_color);
@@ -333,6 +336,7 @@ export async function buildExplainerVideo(opts: {
   scenes: ExplainerScene[];
   brand: Brand;
   pictures: (string | null)[];
+  recordings?: (string | null)[];
   clips: (string | null)[];
   narrate: (text: string, scene: ExplainerScene) => Promise<string>;
   onProgress: (msg: string, pct: number) => void;
@@ -353,10 +357,20 @@ export async function buildExplainerVideo(opts: {
   onProgress(`Making voiceover 1 of ${scenes.length}…`, 2);
   const voice = await pool(scenes.length, 3, async (i) => {
     check();
-    const text = scenes[i]!.narration.trim();
+    const scene = scenes[i];
+    if (!scene) throw new Error("Scene is missing");
     let buf: AudioBuffer | null = null;
-    if (text) {
-      try { buf = await decodeCtx.decodeAudioData(b64ToArrayBuffer(await opts.narrate(text, scenes[i]!))); }
+    {
+      try {
+        const data = await sceneNarration(scene, async () => {
+          const url = opts.recordings?.[i];
+          if (!url) throw new Error("Uploaded audio is unavailable. Re-upload it or choose AI voice.");
+          const response = await fetch(url, { signal });
+          if (!response.ok) throw new Error("Couldn't download uploaded audio.");
+          return response.arrayBuffer();
+        }, async () => b64ToArrayBuffer(await opts.narrate(scene.narration.trim(), scene)));
+        if (data) buf = await decodeCtx.decodeAudioData(data);
+      }
       catch (e: any) { check(); throw new Error(`Voiceover for scene ${i + 1} failed: ${e?.message ?? "unknown error"}`); }
     }
     done++;

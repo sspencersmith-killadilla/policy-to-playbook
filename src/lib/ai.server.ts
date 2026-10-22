@@ -194,3 +194,46 @@ export async function generateIllustration(prompt: string): Promise<Uint8Array> 
   if (!b64) throw new AiError("The picture could not be made. Please try again.", 502);
   return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 }
+
+// ---- Custom (cloned) voices via the organization's own ElevenLabs account ----
+const ELEVEN = "https://api.elevenlabs.io/v1";
+export function voiceCloningEnabled() { return !!process.env["ELEVENLABS_API_KEY"]; }
+function elevenKey() {
+  const k = process.env["ELEVENLABS_API_KEY"];
+  if (!k) throw new AiError("Custom voices aren't set up yet. An owner needs to connect a voice-cloning account.", 503);
+  return k;
+}
+async function elevenFailure(res: Response): Promise<never> {
+  const text = await res.text().catch(() => "");
+  console.error(`ElevenLabs error [${res.status}]: ${text}`);
+  let msg = "The voice service request failed.";
+  try { const j = JSON.parse(text); msg = j?.detail?.message || j?.detail || msg; } catch {}
+  if (res.status === 401) msg = "The voice-cloning account key isn't valid. An owner needs to reconnect it.";
+  if (res.status === 402) msg = "The voice-cloning account is out of credits or its plan doesn't include voice cloning.";
+  if (res.status === 429) msg = "The voice service is busy. Please wait a minute and try again.";
+  throw new AiError(typeof msg === "string" ? msg : "The voice service request failed.", res.status);
+}
+export async function cloneVoice(name: string, sample: Blob, filename: string): Promise<string> {
+  const fd = new FormData();
+  fd.append("name", name);
+  fd.append("files", sample, filename);
+  fd.append("remove_background_noise", "true");
+  const res = await fetch(`${ELEVEN}/voices/add`, { method: "POST", headers: { "xi-api-key": elevenKey() }, body: fd });
+  if (!res.ok) await elevenFailure(res);
+  const j = (await res.json()) as { voice_id: string };
+  return j.voice_id;
+}
+export async function deleteClonedVoice(id: string) {
+  const res = await fetch(`${ELEVEN}/voices/${encodeURIComponent(id)}`, { method: "DELETE", headers: { "xi-api-key": elevenKey() } });
+  if (!res.ok && res.status !== 404) await elevenFailure(res);
+}
+/** Returns MP3 bytes as base64 (browsers decode MP3 the same way as WAV). */
+export async function synthesizeCustomSpeech(text: string, voiceId: string): Promise<string> {
+  const res = await fetch(`${ELEVEN}/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {
+    method: "POST",
+    headers: { "xi-api-key": elevenKey(), "Content-Type": "application/json" },
+    body: JSON.stringify({ text, model_id: "eleven_multilingual_v2", voice_settings: { stability: 0.55, similarity_boost: 0.8, use_speaker_boost: true } }),
+  });
+  if (!res.ok) await elevenFailure(res);
+  return toBase64(new Uint8Array(await res.arrayBuffer()));
+}

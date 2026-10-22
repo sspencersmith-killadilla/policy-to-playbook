@@ -468,6 +468,7 @@ async function recordingBase64(path: string): Promise<string> {
 }
 
 function VoiceoverBox({ slide, disabled, playing, onPreviewAI, onChange }: { slide: Slide; disabled: boolean; playing: boolean; onPreviewAI: () => void; onChange: (p: Partial<Slide>) => void }) {
+  const team = useOrgVoices();
   const { current } = useOrg();
   const [mode, setMode] = useState<"ai" | "own">(slide.voice_path ? "own" : "ai");
   const [rec, setRec] = useState<MediaRecorder | null>(null);

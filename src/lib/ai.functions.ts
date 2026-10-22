@@ -185,7 +185,11 @@ export const narrateText = createServerFn({ method: "POST" })
     let providerVoice: string | null = null;
     if (data.voice.startsWith("custom:")) {
       const { data: v } = await supabase.from("org_voices").select("provider_voice_id").eq("id", data.voice.slice(7)).eq("org_id", data.orgId).maybeSingle();
-      if (v) providerVoice = v.provider_voice_id; else data.voice = "Kore";
+      if (v) providerVoice = v.provider_voice_id;
+      else {
+        const { data: bk } = await supabase.from("brand_kits").select("voice").eq("org_id", data.orgId).maybeSingle();
+        data.voice = bk?.voice && /^[A-Za-z]+$/.test(bk.voice) ? bk.voice : "Kore";
+      }
     }
     const path = `${data.orgId}/narration/v2-${await narrationKey(data.voice, data.text)}.wav`;
 

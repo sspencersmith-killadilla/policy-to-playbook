@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 
 export function CustomVoices() {
   const { current } = useOrg();
-  const { user } = useAuth() as any;
+  const { user } = useAuth();
   const status = useServerFn(getVoiceCloningStatus);
   const create = useServerFn(createOrgVoice);
   const remove = useServerFn(deleteOrgVoice);

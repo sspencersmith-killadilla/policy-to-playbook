@@ -1,4 +1,25 @@
 // Pure timing helpers for the explainer video (shared by the renderer, captions and tests).
+import type { ExplainerScene } from "./course";
+
+export const EXPLAINER_CLOSING_ID = "relay-explainer-closing";
+
+/** Enforce the closing scene for new and saved scripts without changing their media indices. */
+export function withExplainerClosing(scenes: ExplainerScene[]): ExplainerScene[] {
+  const content = scenes.filter((scene) => scene.id !== EXPLAINER_CLOSING_ID);
+  const last = content.at(-1);
+  return [...content, {
+    id: EXPLAINER_CLOSING_ID,
+    kind: "title",
+    heading: "Thank you for watching",
+    narration: "Thank you for watching, and for taking the time to learn.",
+    items: [],
+    items2: [],
+    quote: null,
+    source: null,
+    illustration_prompt: null,
+    voice: last?.voice ?? null,
+  }];
+}
 
 export type PhotoFrame = { x: number; y: number; zoom: number };
 export function normalizePhotoFrame(frame?: Partial<PhotoFrame> | null): PhotoFrame {

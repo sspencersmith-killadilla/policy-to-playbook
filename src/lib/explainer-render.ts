@@ -1,7 +1,7 @@
 // Browser-only renderer for the explainer video: animated canvas scenes + narration, encoded to MP4.
 import type { Brand, ExplainerScene } from "./course";
 import type { Chapter, RecordedVideo } from "./exports";
-import { captionCues, cuesToVtt, photoCoverRect, revealTimes, sceneDuration, sceneNarration, type Cue } from "./explainer";
+import { captionCues, cuesToVtt, EXPLAINER_CLOSING_ID, photoCoverRect, revealTimes, sceneDuration, sceneNarration, withExplainerClosing, type Cue } from "./explainer";
 
 export type ExplainerVideo = RecordedVideo & { vtt: string; titles: string[] };
 
@@ -346,7 +346,10 @@ export async function buildExplainerVideo(opts: {
   burnCaptions: boolean;
   onFallback?: () => void;
 }): Promise<ExplainerVideo> {
-  const { scenes, brand, signal, onProgress, width: W, height: H } = opts;
+  const { brand, signal, onProgress, width: W, height: H } = opts;
+  const scenes = withExplainerClosing(opts.scenes);
+  // Match media by original scene index, even if an existing closing scene was moved or removed.
+  const mediaIndex = scenes.map((scene) => scene.id === EXPLAINER_CLOSING_ID ? -1 : opts.scenes.indexOf(scene));
   const check = () => { if (signal.aborted) throw new Error("Cancelled"); };
   const SR = 48000;
   const decodeCtx = new OfflineAudioContext(2, 1, SR);
@@ -363,7 +366,7 @@ export async function buildExplainerVideo(opts: {
     {
       try {
         const data = await sceneNarration(scene, async () => {
-          const url = opts.recordings?.[i];
+          const url = opts.recordings?.[mediaIndex[i] ?? -1];
           if (!url) throw new Error("Uploaded audio is unavailable. Re-upload it or choose AI voice.");
           const response = await fetch(url, { signal });
           if (!response.ok) throw new Error("Couldn't download uploaded audio.");
@@ -383,9 +386,9 @@ export async function buildExplainerVideo(opts: {
   await Promise.all([`700 40px "${brand.heading_font}"`, `500 24px "${brand.body_font}"`, `italic 500 38px "${brand.heading_font}"`].map((f) => document.fonts.load(f).catch(() => null)));
   const logo = await loadBitmap(brand.logo_url);
   const assets: Assets[] = await Promise.all(scenes.map(async (_, i) => {
-    const pic = await loadBitmap(opts.pictures[i] ?? null);
+    const pic = await loadBitmap(opts.pictures[mediaIndex[i] ?? -1] ?? null);
     let clip: HTMLVideoElement | null = null, clipAudio: AudioBuffer | null = null;
-    const src = opts.clips[i];
+    const src = opts.clips[mediaIndex[i] ?? -1];
     if (src) {
       try {
         const buf = await (await fetch(src)).arrayBuffer();
@@ -408,7 +411,8 @@ export async function buildExplainerVideo(opts: {
   let t = 0;
   const starts: number[] = [], durs: number[] = [];
   scenes.forEach((s, i) => {
-    const d = sceneDuration(voice[i]?.duration);
+    // Let the final thank-you remain on screen after its narration finishes.
+    const d = s.id === EXPLAINER_CLOSING_ID ? Math.max(5, (voice[i]?.duration ?? 0) + 2) : sceneDuration(voice[i]?.duration);
     starts.push(t); durs.push(d);
     chapters.push({ slideIndex: i, start: Math.round(t * 10) / 10, end: Math.round((t + d) * 10) / 10 });
     cues.push(...captionCues(s.narration, t, d));

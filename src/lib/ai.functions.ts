@@ -175,13 +175,18 @@ export const narrateText = createServerFn({ method: "POST" })
   .inputValidator((d: { orgId: string; text: string; voice: string }) => {
     const text = (d.text ?? "").trim().slice(0, 1500);
     if (!text) throw new Error("Nothing to narrate.");
-    return { orgId: d.orgId, text, voice: /^[A-Za-z]+$/.test(d.voice) ? d.voice : "Kore" };
+    return { orgId: d.orgId, text, voice: /^[A-Za-z]+$/.test(d.voice) || /^custom:[0-9a-f-]{36}$/.test(d.voice) ? d.voice : "Kore" };
   })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as any;
     await assertMember(supabase, data.orgId, userId);
-    const { synthesizeSpeech, toBase64 } = await import("./ai.server");
+    const { synthesizeSpeech, synthesizeCustomSpeech, toBase64 } = await import("./ai.server");
     const { narrationKey, isRetryableStatus } = await import("./narration");
+    let providerVoice: string | null = null;
+    if (data.voice.startsWith("custom:")) {
+      const { data: v } = await supabase.from("org_voices").select("provider_voice_id").eq("id", data.voice.slice(7)).eq("org_id", data.orgId).maybeSingle();
+      if (v) providerVoice = v.provider_voice_id; else data.voice = "Kore";
+    }
     const path = `${data.orgId}/narration/v2-${await narrationKey(data.voice, data.text)}.wav`;
 
     // Reuse a saved voiceover when the script and voice are unchanged.
@@ -193,7 +198,7 @@ export const narrateText = createServerFn({ method: "POST" })
     let wavBase64 = "";
     for (let attempt = 0; ; attempt++) {
       try {
-        wavBase64 = await synthesizeSpeech(data.text, data.voice);
+        wavBase64 = providerVoice ? await synthesizeCustomSpeech(data.text, providerVoice) : await synthesizeSpeech(data.text, data.voice);
         break;
       } catch (e: any) {
         if (attempt >= 3 || !isRetryableStatus(e?.status ?? 0)) throw e;
@@ -416,4 +421,60 @@ export const makeIllustration = createServerFn({ method: "POST" })
     if (up.error) throw new Error(up.error.message);
     await supabase.from("audit_events").insert({ org_id: course.org_id, actor: userId, actor_email: claims?.email ?? null, action: "illustration.generated", target: data.courseId });
     return { path };
+  });
+
+// ---- Custom voices ----
+export const getVoiceCloningStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { voiceCloningEnabled } = await import("./ai.server");
+    return { enabled: voiceCloningEnabled() };
+  });
+
+export const createOrgVoice = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { orgId: string; name: string; samplePath: string; consented: boolean }) => {
+    const name = (d.name ?? "").trim().slice(0, 60);
+    if (!name) throw new Error("Give your voice a name.");
+    if (typeof d.samplePath !== "string" || !d.samplePath.startsWith(`${d.orgId}/voice-samples/`)) throw new Error("Invalid sample.");
+    return { orgId: d.orgId, name, samplePath: d.samplePath, consented: d.consented === true };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context as any;
+    await assertEditor(supabase, data.orgId, userId);
+    const { canCreateVoice, VOICE_CONSENT_TEXT } = await import("./voices");
+    const { count } = await supabase.from("org_voices").select("id", { count: "exact", head: true }).eq("org_id", data.orgId);
+    const check = canCreateVoice(count ?? 0, data.consented);
+    if (!check.ok) throw new Error(check.reason);
+    const file = await supabase.storage.from("documents").download(data.samplePath);
+    if (file.error || !file.data) throw new Error("Could not read your recording. Please upload it again.");
+    const { cloneVoice } = await import("./ai.server");
+    const providerId = await cloneVoice(`Relay - ${data.name}`, file.data, data.samplePath.split("/").pop() || "sample.webm");
+    const { data: row, error } = await supabase.from("org_voices").insert({
+      org_id: data.orgId, created_by: userId, created_by_email: claims?.email ?? null, name: data.name,
+      provider_voice_id: providerId, consent_text: VOICE_CONSENT_TEXT, sample_path: data.samplePath,
+    }).select("id").single();
+    if (error) { const { deleteClonedVoice } = await import("./ai.server"); await deleteClonedVoice(providerId).catch(() => {}); throw new Error(error.message); }
+    await supabase.from("audit_events").insert({ org_id: data.orgId, actor: userId, actor_email: claims?.email ?? null, action: "voice.created", target: data.name });
+    return { id: row.id as string };
+  });
+
+export const deleteOrgVoice = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context as any;
+    const { data: v } = await supabase.from("org_voices").select("*").eq("id", data.id).maybeSingle();
+    if (!v) throw new Error("Voice not found.");
+    if (v.created_by !== userId) {
+      const { data: owner } = await supabase.rpc("has_org_role", { _org: v.org_id, _user: userId, _roles: ["owner"] });
+      if (!owner) throw new Error("Only the person who made this voice or an owner can delete it.");
+    }
+    const { deleteClonedVoice, voiceCloningEnabled } = await import("./ai.server");
+    if (voiceCloningEnabled()) await deleteClonedVoice(v.provider_voice_id);
+    const { error } = await supabase.from("org_voices").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    if (v.sample_path) await supabase.storage.from("documents").remove([v.sample_path]);
+    await supabase.from("audit_events").insert({ org_id: v.org_id, actor: userId, actor_email: claims?.email ?? null, action: "voice.deleted", target: v.name });
+    return { ok: true };
   });

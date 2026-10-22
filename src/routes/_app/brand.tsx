@@ -5,6 +5,10 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
 import { canEdit, FONT_CHOICES, VOICE_CHOICES, voiceLabel, type Brand, type Slide } from "@/lib/course";
+import { CustomVoices } from "@/components/CustomVoices";
+import { useOrgVoices } from "@/lib/useOrgVoices";
+import { customVoiceValue } from "@/lib/voices";
+import { SelectGroup, SelectLabel } from "@/components/ui/select";
 import { ScaledSlide, useBrandFonts } from "@/components/SlideView";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +39,7 @@ function BrandPage() {
   useEffect(() => setB(brand), [brand]);
   useBrandFonts(b);
   const editable = canEdit(current?.role);
+  const team = useOrgVoices();
   const set = (p: Partial<Brand>) => setB((x) => ({ ...x, ...p }));
 
   function onLogo(f?: File) {
@@ -87,9 +92,10 @@ function BrandPage() {
           <Label>Narrator voice</Label>
           <Select value={b.voice} disabled={!editable} onValueChange={(v) => set({ voice: v })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{VOICE_CHOICES.map((f) => <SelectItem key={f} value={f}>{voiceLabel(f)}</SelectItem>)}</SelectContent>
+            <SelectContent>{team.voices.length > 0 && <SelectGroup><SelectLabel>Your team's voices</SelectLabel>{team.voices.map((v) => <SelectItem key={v.id} value={customVoiceValue(v.id)}>{v.name}</SelectItem>)}</SelectGroup>}<SelectGroup><SelectLabel>AI voices</SelectLabel>{VOICE_CHOICES.map((f) => <SelectItem key={f} value={f}>{voiceLabel(f)}</SelectItem>)}</SelectGroup></SelectContent>
           </Select>
         </div>
+        <CustomVoices />
         {editable && <Button onClick={save} className="w-full">Save brand kit</Button>}
       </div>
       <div className="space-y-6">

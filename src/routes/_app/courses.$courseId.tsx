@@ -7,6 +7,8 @@ import { ArrowDown, ArrowUp, Copy, Trash2, Plus, Sparkles, Play, Download, Check
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
 import { canEdit, emptySlide, VOICE_CHOICES, voiceLabel, LAYOUTS, newId, normalizeContent, type CourseContent, type Slide, type QuizQuestion } from "@/lib/course";
+import { useOrgVoices } from "@/lib/useOrgVoices";
+import { customVoiceValue } from "@/lib/voices";
 import { regenerateSlide, narrateText, startSceneClip, checkSceneClip, suggestClipPrompts } from "@/lib/ai.functions";
 import { exportPptx, exportScorm, exportVideo, buildNarratedVideo, renderSlideImages } from "@/lib/exports";
 import { ScaledSlide, SlideView, useBrandFonts } from "@/components/SlideView";
@@ -466,6 +468,7 @@ async function recordingBase64(path: string): Promise<string> {
 }
 
 function VoiceoverBox({ slide, disabled, playing, onPreviewAI, onChange }: { slide: Slide; disabled: boolean; playing: boolean; onPreviewAI: () => void; onChange: (p: Partial<Slide>) => void }) {
+  const team = useOrgVoices();
   const { current } = useOrg();
   const [mode, setMode] = useState<"ai" | "own">(slide.voice_path ? "own" : "ai");
   const [rec, setRec] = useState<MediaRecorder | null>(null);
@@ -531,7 +534,8 @@ function VoiceoverBox({ slide, disabled, playing, onPreviewAI, onChange }: { sli
         <div className="flex flex-wrap items-center gap-2">
         <select aria-label="AI voice" className="h-8 rounded-md border bg-background px-2 text-sm" value={slide.voice ?? ""} disabled={disabled} onChange={(e) => onChange({ voice: e.target.value || null })}>
           <option value="">Brand kit voice</option>
-          {VOICE_CHOICES.map((v) => <option key={v} value={v}>{voiceLabel(v)}</option>)}
+          {team.voices.length > 0 && <optgroup label="Your team's voices">{team.voices.map((v) => <option key={v.id} value={customVoiceValue(v.id)}>{v.name}</option>)}</optgroup>}
+          <optgroup label="AI voices">{VOICE_CHOICES.map((v) => <option key={v} value={v}>{voiceLabel(v)}</option>)}</optgroup>
         </select>
         <Button size="sm" variant="ghost" onClick={onPreviewAI} disabled={playing || !slide.notes.trim()}>
           {playing ? <Loader2 className="animate-spin" /> : <Volume2 />} Hear AI voiceover

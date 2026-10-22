@@ -336,6 +336,53 @@ export type Database = {
           },
         ]
       }
+      org_voices: {
+        Row: {
+          consent_text: string
+          consented_at: string
+          created_at: string
+          created_by: string
+          created_by_email: string | null
+          id: string
+          name: string
+          org_id: string
+          provider_voice_id: string
+          sample_path: string | null
+        }
+        Insert: {
+          consent_text: string
+          consented_at?: string
+          created_at?: string
+          created_by: string
+          created_by_email?: string | null
+          id?: string
+          name: string
+          org_id: string
+          provider_voice_id: string
+          sample_path?: string | null
+        }
+        Update: {
+          consent_text?: string
+          consented_at?: string
+          created_at?: string
+          created_by?: string
+          created_by_email?: string | null
+          id?: string
+          name?: string
+          org_id?: string
+          provider_voice_id?: string
+          sample_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_voices_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string

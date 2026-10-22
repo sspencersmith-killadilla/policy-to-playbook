@@ -1,5 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { captionCues, normalizePhotoFrame, photoCoverRect, revealTimes, sceneDuration, sceneNarration } from "@/lib/explainer";
+import { captionCues, EXPLAINER_CLOSING_ID, normalizePhotoFrame, photoCoverRect, revealTimes, sceneDuration, sceneNarration, withExplainerClosing } from "@/lib/explainer";
+import type { ExplainerScene } from "@/lib/course";
+
+describe("required explainer ending", () => {
+  const scene: ExplainerScene = { id: "saved-scene", kind: "recap", heading: "Recap", narration: "Review", items: [], items2: [], quote: null, source: null, illustration_prompt: null, voice: "Charon", voice_path: "org/audio.wav", image_path: "org/photo.jpg" };
+
+  it("appends a distinct closing scene to previously saved content without altering uploaded media", () => {
+    const original = [scene];
+    const result = withExplainerClosing(original);
+    expect(result).toHaveLength(2);
+    expect(result.at(-1)?.id).toBe(EXPLAINER_CLOSING_ID);
+    expect(result.at(-1)?.voice).toBe("Charon");
+    expect(result.at(-1)?.voice_path).toBeUndefined();
+    expect(result[0]).toBe(scene);
+    expect(original).toEqual([scene]);
+  });
+
+  it("keeps exactly one closing scene at the end when rebuilding or reordering a script", () => {
+    const closing = withExplainerClosing([])[0];
+    if (!closing) throw new Error("Closing scene missing");
+    const result = withExplainerClosing([closing, scene, closing]);
+    expect(result.map((s) => s.id)).toEqual(["saved-scene", EXPLAINER_CLOSING_ID]);
+    expect(withExplainerClosing(result)).toEqual(result);
+  });
+});
 
 describe("explainer timing", () => {
   it("uses uploaded scene audio instead of AI, even without written narration", async () => {

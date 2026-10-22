@@ -4,12 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { VOICE_CHOICES, voiceLabel, type ExplainerScene } from "@/lib/course";
+import { useOrgVoices } from "@/lib/useOrgVoices";
+import { customVoiceValue } from "@/lib/voices";
+import { SelectGroup, SelectLabel } from "@/components/ui/select";
 
 export function ExplainerAudio({ scene, url, editable, brandVoice, onChange, onUpload }: {
   scene: ExplainerScene; url: string | null | undefined; editable: boolean; brandVoice: string;
   onChange: (p: Partial<ExplainerScene>) => void; onUpload: (file: File) => Promise<void>;
 }) {
   const [uploading, setUploading] = useState(false);
+  const team = useOrgVoices();
   return (
     <div className="space-y-2">
       <Label className="text-xs">Voiceover</Label>
@@ -19,7 +23,7 @@ export function ExplainerAudio({ scene, url, editable, brandVoice, onChange, onU
       </Select>
       {!scene.voice_path && <Select value={scene.voice || "brand"} disabled={!editable || uploading} onValueChange={(value) => onChange({ voice: value === "brand" ? null : value })}>
         <SelectTrigger aria-label="AI voice for this scene"><SelectValue /></SelectTrigger>
-        <SelectContent><SelectItem value="brand">Voice: {voiceLabel(brandVoice)} (brand kit)</SelectItem>{VOICE_CHOICES.map((v) => <SelectItem key={v} value={v}>{voiceLabel(v)}</SelectItem>)}</SelectContent>
+        <SelectContent><SelectItem value="brand">Voice: {team.label(brandVoice)} (brand kit)</SelectItem>{team.voices.length > 0 && <SelectGroup><SelectLabel>Your team's voices</SelectLabel>{team.voices.map((v) => <SelectItem key={v.id} value={customVoiceValue(v.id)}>{v.name}</SelectItem>)}</SelectGroup>}<SelectGroup><SelectLabel>AI voices</SelectLabel>{VOICE_CHOICES.map((v) => <SelectItem key={v} value={v}>{voiceLabel(v)}</SelectItem>)}</SelectGroup></SelectContent>
       </Select>}
       {url && scene.voice_path && <audio controls src={url} className="h-10 w-full" aria-label="Uploaded scene audio" />}
       {editable && <div className="flex flex-wrap items-center gap-2">

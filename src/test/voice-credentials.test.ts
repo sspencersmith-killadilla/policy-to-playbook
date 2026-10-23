@@ -51,6 +51,7 @@ describe("organization voice credentials", () => {
   it("does not leak unknown provider details for a rejected request", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: { message: "provider-sensitive-content" } }), { status: 400 })));
     const error = await testVoiceKey("test-only").catch((e: Error) => e);
+    if (!(error instanceof Error)) throw new Error("Expected the connection check to reject the request");
     expect(error.message).toContain("rejected the connection request (400)");
     expect(error.message).not.toContain("provider-sensitive-content");
   });

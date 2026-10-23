@@ -39,7 +39,20 @@ describe("organization voice credentials", () => {
     await expect(testVoiceKey("test-only")).rejects.toThrow("This key needs Voices: Read and Write");
   });
   it("accepts a successful provider voice access check", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}", { status: 200 })));
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
     await expect(testVoiceKey("test-only")).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledWith("https://api.elevenlabs.io/v2/voices?page_size=1", expect.objectContaining({ headers: { "xi-api-key": "test-only" } }));
+  });
+  it("classifies an invalid key even when ElevenLabs returns 400", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: { status: "invalid_api_key", message: "provider-sensitive-content" } }), { status: 400 })));
+    await expect(testVoiceKey("test-only")).rejects.toThrow("Copy an active API key");
+  });
+  it("does not leak unknown provider details for a rejected request", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: { message: "provider-sensitive-content" } }), { status: 400 })));
+    const error = await testVoiceKey("test-only").catch((e: Error) => e);
+    if (!(error instanceof Error)) throw new Error("Expected the connection check to reject the request");
+    expect(error.message).toContain("rejected the connection request (400)");
+    expect(error.message).not.toContain("provider-sensitive-content");
   });
 });

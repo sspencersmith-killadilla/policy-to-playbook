@@ -31,6 +31,8 @@ export const Route = createFileRoute("/_app/courses/$courseId")({
       { name: "description", content: "Edit, approve and export your training course." },
       { property: "og:title", content: "Edit course — Relay" },
       { property: "og:description", content: "Edit, approve and export your training course." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Editor,

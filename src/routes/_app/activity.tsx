@@ -11,6 +11,8 @@ export const Route = createFileRoute("/_app/activity")({
       { name: "description", content: "Audit log of changes, approvals and exports." },
       { property: "og:title", content: "Activity — Relay" },
       { property: "og:description", content: "Audit log of changes, approvals and exports." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Activity,

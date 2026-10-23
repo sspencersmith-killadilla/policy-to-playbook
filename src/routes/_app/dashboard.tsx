@@ -17,6 +17,8 @@ export const Route = createFileRoute("/_app/dashboard")({
       { name: "description", content: "Your organization's training courses." },
       { property: "og:title", content: "Courses — Relay" },
       { property: "og:description", content: "Your organization's training courses." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Dashboard,

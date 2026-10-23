@@ -69,7 +69,12 @@ function Guide() {
           <li><b>Colors</b> – primary, accent and background colors for slides.</li>
           <li><b>Heading font / Body font</b> – fonts used on slides and exports.</li>
           <li><b>Narrator voice</b> – the AI voice used for voiceovers and the narrated video.</li>
-          <li><b>Custom voices</b> – once an owner connects a voice-cloning account (ElevenLabs), any editor can press <b>Create my voice</b>, agree to the consent statement, record or upload 1–3 minutes of themselves reading, and name it. The voice then appears under <b>Your team's voices</b> in every voice menu. Up to 10 per organization; the creator or an owner can delete a voice any time, and slides using it go back to the brand kit voice.</li>
+          <li id="custom-voices"><b>Custom voices</b> – once an owner connects a voice-cloning account (ElevenLabs), any editor can press <b>Create my voice</b>, agree to the consent statement, record or upload 1–3 minutes of themselves reading, and name it. The voice then appears under <b>Your team's voices</b> in every voice menu. Up to 10 per organization; the creator or an owner can delete a voice any time, and slides using it go back to the brand kit voice.
+            <ol className="mt-1 list-decimal pl-5"><b>Turning it on (one time, owner):</b>
+              <li>Get a paid ElevenLabs plan with voice cloning (Starter or higher) at elevenlabs.io.</li>
+              <li>In ElevenLabs, open your profile → <b>API Keys</b> → <b>Create API key</b>, turn on Text to Speech and Voices, and copy the key.</li>
+              <li>In the Lovable editor chat for Relay, type "connect ElevenLabs" and paste the key into the card that opens.</li>
+            </ol></li>
         </ul>
         <Tip>The slide preview on the page updates as you change things. Click <b>Save brand kit</b> when done.</Tip>
 

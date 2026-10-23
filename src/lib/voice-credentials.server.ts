@@ -34,12 +34,15 @@ export async function orgVoiceKey(orgId: string) {
   return decryptVoiceKey(orgId, data.encrypted_key);
 }
 export async function testVoiceKey(key: string) {
-  const response = await fetch("https://api.elevenlabs.io/v1/voices", { headers: { "xi-api-key": key }, signal: AbortSignal.timeout(20000) });
+  const response = await fetch("https://api.elevenlabs.io/v2/voices?page_size=1", { headers: { "xi-api-key": key }, signal: AbortSignal.timeout(20000) });
   if (response.ok) return;
   // Never log or return a provider body: it may contain credential-related data.
-  let missing = false;
-  try { const body = await response.json(); missing = body?.detail?.status === "missing_permissions" || body?.detail?.code === "missing_permissions"; } catch {}
-  if (missing) throw new AiError("This key needs Voices: Read and Write, and Text to Speech access in ElevenLabs. Update its permissions and try again.", response.status);
-  if (response.status === 401) throw new AiError("ElevenLabs did not accept this key. Copy an active API key from ElevenLabs and try again.", 401);
+  let codes: unknown[] = [];
+  try { const body = await response.json(); codes = [body?.detail?.status, body?.detail?.code]; } catch {}
+  if (codes.includes("missing_permissions")) throw new AiError("This key needs Voices: Read and Write, and Text to Speech access in ElevenLabs. Update its permissions and try again.", response.status);
+  if (codes.includes("invalid_api_key") || response.status === 401) throw new AiError("ElevenLabs did not accept this key. Copy an active API key from ElevenLabs → API Keys (not a voice ID or account ID) and try again.", response.status);
+  if (codes.includes("quota_exceeded") || response.status === 402) throw new AiError("ElevenLabs reports an account usage or billing limit. Check your ElevenLabs subscription and available credits, then try again.", response.status);
+  if (response.status === 403) throw new AiError("ElevenLabs blocked access. Check this key's Voices permissions and any IP restrictions in ElevenLabs → API Keys.", 403);
+  if (response.status === 400) throw new AiError("ElevenLabs rejected the connection request (400). Copy the API key value from ElevenLabs → API Keys, not a voice ID or account ID, and allow Voices: Read and Write plus Text to Speech. If it still fails, contact ElevenLabs about the rejected request.", 400);
   throw new AiError(`ElevenLabs connection check failed (${response.status}). Check your account and try again.`, response.status);
 }

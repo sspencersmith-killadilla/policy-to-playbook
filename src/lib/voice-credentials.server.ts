@@ -39,9 +39,14 @@ export async function testVoiceKey(key: string) {
   // Never log or return a provider body: it may contain credential-related data.
   let codes: unknown[] = [];
   try { const body = await response.json(); codes = [body?.detail?.status, body?.detail?.code]; } catch {}
+  // Log only fixed categories, never provider text or any part of the submitted key.
+  const knownCodes = ["missing_permissions", "invalid_api_key", "quota_exceeded", "unauthorized", "authentication_error", "ip_not_allowed"];
+  const category = knownCodes.find((code) => codes.includes(code)) ?? "unclassified";
+  console.warn("ElevenLabs connection check rejected", { status: response.status, category });
   if (codes.includes("missing_permissions")) throw new AiError("This key needs Voices: Read and Write, and Text to Speech access in ElevenLabs. Update its permissions and try again.", response.status);
-  if (codes.includes("invalid_api_key") || response.status === 401) throw new AiError("ElevenLabs did not accept this key. Copy an active API key from ElevenLabs → API Keys (not a voice ID or account ID) and try again.", response.status);
+  if (codes.includes("invalid_api_key")) throw new AiError("ElevenLabs reports that this API key is invalid. Copy an active API key from ElevenLabs → API Keys and try again.", response.status);
   if (codes.includes("quota_exceeded") || response.status === 402) throw new AiError("ElevenLabs reports an account usage or billing limit. Check your ElevenLabs subscription and available credits, then try again.", response.status);
+  if (response.status === 401) throw new AiError("ElevenLabs denied access (401), but did not identify the key as invalid. Check that the permission changes were saved for this exact key and that it belongs to the intended ElevenLabs workspace. Then try Test & save key again.", 401);
   if (response.status === 403) throw new AiError("ElevenLabs blocked access. Check this key's Voices permissions and any IP restrictions in ElevenLabs → API Keys.", 403);
   if (response.status === 400) throw new AiError("ElevenLabs rejected the connection request (400). Copy the API key value from ElevenLabs → API Keys, not a voice ID or account ID, and allow Voices: Read and Write plus Text to Speech. If it still fails, contact ElevenLabs about the rejected request.", 400);
   throw new AiError(`ElevenLabs connection check failed (${response.status}). Check your account and try again.`, response.status);

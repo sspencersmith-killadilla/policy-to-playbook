@@ -1,5 +1,5 @@
-// @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { webcrypto } from "node:crypto";
 import { canManageVoiceConnection } from "@/lib/voice-credentials";
 import { encryptVoiceKey, decryptVoiceKey, testVoiceKey } from "@/lib/voice-credentials.server";
 
@@ -12,6 +12,7 @@ describe("organization voice credentials", () => {
     expect(canManageVoiceConnection(undefined)).toBe(false);
   });
   it("encrypts keys and binds decryption to the organization", async () => {
+    vi.stubGlobal("crypto", webcrypto);
     vi.stubEnv("ORG_CREDENTIAL_ENCRYPTION_KEY", "test-only-encryption-material-not-a-real-key");
     const sample = "test-only-provider-credential";
     const sealed = await encryptVoiceKey("org-a", sample);
@@ -20,6 +21,7 @@ describe("organization voice credentials", () => {
     await expect(decryptVoiceKey("org-b", sealed)).rejects.toThrow();
   });
   it("rejects altered ciphertext", async () => {
+    vi.stubGlobal("crypto", webcrypto);
     vi.stubEnv("ORG_CREDENTIAL_ENCRYPTION_KEY", "test-only-encryption-material-not-a-real-key");
     const sealed = JSON.parse(await encryptVoiceKey("org-a", "test-only"));
     sealed.data[0] ^= 1;

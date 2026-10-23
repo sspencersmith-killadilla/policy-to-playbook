@@ -46,7 +46,15 @@ describe("organization voice credentials", () => {
   });
   it("classifies an invalid key even when ElevenLabs returns 400", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: { status: "invalid_api_key", message: "provider-sensitive-content" } }), { status: 400 })));
-    await expect(testVoiceKey("test-only")).rejects.toThrow("Copy an active API key");
+    await expect(testVoiceKey("test-only")).rejects.toThrow("reports that this API key is invalid");
+  });
+  it("does not classify every 401 as an invalid key", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: { code: "unauthorized" } }), { status: 401 })));
+    await expect(testVoiceKey("test-only")).rejects.toThrow("did not identify the key as invalid");
+  });
+  it("does not mistake a 401 account quota error for an invalid key", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: { status: "quota_exceeded" } }), { status: 401 })));
+    await expect(testVoiceKey("test-only")).rejects.toThrow("account usage or billing limit");
   });
   it("does not leak unknown provider details for a rejected request", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: { message: "provider-sensitive-content" } }), { status: 400 })));

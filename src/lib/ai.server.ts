@@ -197,41 +197,36 @@ export async function generateIllustration(prompt: string): Promise<Uint8Array> 
 
 // ---- Custom (cloned) voices via the organization's own ElevenLabs account ----
 const ELEVEN = "https://api.elevenlabs.io/v1";
-export function voiceCloningEnabled() { return !!process.env["ELEVENLABS_API_KEY"]; }
-function elevenKey() {
-  const k = process.env["ELEVENLABS_API_KEY"];
-  if (!k) throw new AiError("Custom voices aren't set up yet. An owner needs to connect a voice-cloning account.", 503);
-  return k;
-}
 async function elevenFailure(res: Response): Promise<never> {
   const text = await res.text().catch(() => "");
-  console.error(`ElevenLabs error [${res.status}]: ${text}`);
+  console.error(`ElevenLabs request failed [${res.status}]`);
   let msg = "The voice service request failed.";
-  try { const j = JSON.parse(text); msg = j?.detail?.message || j?.detail || msg; } catch {}
-  if (res.status === 401) msg = "The voice-cloning account key isn't valid. An owner needs to reconnect it.";
+  let missingPermissions = false;
+  try { const j = JSON.parse(text); missingPermissions = j?.detail?.status === "missing_permissions"; } catch {}
+  if (res.status === 401 || res.status === 403) msg = missingPermissions ? "The ElevenLabs key needs Voices: Read and Write, and Text to Speech access. An owner can update the key in Brand kit." : "ElevenLabs did not accept the key. An owner can replace it in Brand kit.";
   if (res.status === 402) msg = "The voice-cloning account is out of credits or its plan doesn't include voice cloning.";
   if (res.status === 429) msg = "The voice service is busy. Please wait a minute and try again.";
   throw new AiError(typeof msg === "string" ? msg : "The voice service request failed.", res.status);
 }
-export async function cloneVoice(name: string, sample: Blob, filename: string): Promise<string> {
+export async function cloneVoice(name: string, sample: Blob, filename: string, apiKey: string): Promise<string> {
   const fd = new FormData();
   fd.append("name", name);
   fd.append("files", sample, filename);
   fd.append("remove_background_noise", "true");
-  const res = await fetch(`${ELEVEN}/voices/add`, { method: "POST", headers: { "xi-api-key": elevenKey() }, body: fd });
+  const res = await fetch(`${ELEVEN}/voices/add`, { method: "POST", headers: { "xi-api-key": apiKey }, body: fd });
   if (!res.ok) await elevenFailure(res);
   const j = (await res.json()) as { voice_id: string };
   return j.voice_id;
 }
-export async function deleteClonedVoice(id: string) {
-  const res = await fetch(`${ELEVEN}/voices/${encodeURIComponent(id)}`, { method: "DELETE", headers: { "xi-api-key": elevenKey() } });
+export async function deleteClonedVoice(id: string, apiKey: string) {
+  const res = await fetch(`${ELEVEN}/voices/${encodeURIComponent(id)}`, { method: "DELETE", headers: { "xi-api-key": apiKey } });
   if (!res.ok && res.status !== 404) await elevenFailure(res);
 }
 /** Returns MP3 bytes as base64 (browsers decode MP3 the same way as WAV). */
-export async function synthesizeCustomSpeech(text: string, voiceId: string): Promise<string> {
+export async function synthesizeCustomSpeech(text: string, voiceId: string, apiKey: string): Promise<string> {
   const res = await fetch(`${ELEVEN}/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {
     method: "POST",
-    headers: { "xi-api-key": elevenKey(), "Content-Type": "application/json" },
+    headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
     body: JSON.stringify({ text, model_id: "eleven_multilingual_v2", voice_settings: { stability: 0.55, similarity_boost: 0.8, use_speaker_boost: true } }),
   });
   if (!res.ok) await elevenFailure(res);

@@ -1,10 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { webcrypto } from "node:crypto";
 import { canManageVoiceConnection } from "@/lib/voice-credentials";
-import { encryptVoiceKey, decryptVoiceKey, testVoiceKey } from "@/lib/voice-credentials.server";
+import { encryptVoiceKey, decryptVoiceKey, testVoiceKey, assertVoiceOwner } from "@/lib/voice-credentials.server";
 
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 describe("organization voice credentials", () => {
+  it("checks owner access on the server before managing keys", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: false, error: null });
+    await expect(assertVoiceOwner({ rpc }, "org-a", "user-a")).rejects.toThrow("Only an organization owner");
+    expect(rpc).toHaveBeenCalledWith("has_org_role", { _org: "org-a", _user: "user-a", _roles: ["owner"] });
+    rpc.mockResolvedValue({ data: true, error: null });
+    await expect(assertVoiceOwner({ rpc }, "org-a", "user-a")).resolves.toBeUndefined();
+  });
   it("allows only an owner to manage a connection", () => {
     expect(canManageVoiceConnection("owner")).toBe(true);
     expect(canManageVoiceConnection("editor")).toBe(false);

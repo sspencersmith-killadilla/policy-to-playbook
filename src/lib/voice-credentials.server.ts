@@ -1,6 +1,10 @@
 import { AiError } from "./ai.server";
 
 const encoder = new TextEncoder();
+export async function assertVoiceOwner(client: any, orgId: string, userId: string) {
+  const { data, error } = await client.rpc("has_org_role", { _org: orgId, _user: userId, _roles: ["owner"] });
+  if (error || data !== true) throw new Error("Only an organization owner can manage the ElevenLabs connection.");
+}
 async function encryptionKey() {
   const secret = process.env["ORG_CREDENTIAL_ENCRYPTION_KEY"];
   if (!secret) throw new Error("Secure voice settings are unavailable. Please try again later.");

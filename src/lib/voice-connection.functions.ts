@@ -4,8 +4,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const orgInput = z.object({ orgId: z.string().uuid() });
 async function owner(client: any, orgId: string, userId: string) {
-  const { data, error } = await client.rpc("has_org_role", { _org: orgId, _user: userId, _roles: ["owner"] });
-  if (error || !data) throw new Error("Only an organization owner can manage the ElevenLabs connection.");
+  const { assertVoiceOwner } = await import("./voice-credentials.server");
+  await assertVoiceOwner(client, orgId, userId);
 }
 export const saveVoiceConnection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

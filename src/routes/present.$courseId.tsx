@@ -14,6 +14,8 @@ export const Route = createFileRoute("/present/$courseId")({
       { name: "description", content: "Present your training course full screen." },
       { property: "og:title", content: "Present — Relay" },
       { property: "og:description", content: "Present your training course." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Present,

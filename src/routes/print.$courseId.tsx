@@ -12,6 +12,8 @@ export const Route = createFileRoute("/print/$courseId")({
       { name: "description", content: "Printable PDF handout of your course." },
       { property: "og:title", content: "Print handout — Relay" },
       { property: "og:description", content: "Printable PDF handout." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Print,

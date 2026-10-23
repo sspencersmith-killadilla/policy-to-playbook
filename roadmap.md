@@ -1,4 +1,6 @@
 # Roadmap
+- [x] Secure organization-specific ElevenLabs key settings and voice routing
+- [ ] Signed-in ElevenLabs settings check — needs owner sign-in and a key with voice permissions.
 - [x] Accounts, orgs, roles, storage, database
 - [x] AI course generation, editor, exports (PDF, PPTX, SCORM, narrated video)
 - [x] Brand kit, team/invites, activity, present, print pages

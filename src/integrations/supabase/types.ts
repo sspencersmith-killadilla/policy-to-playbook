@@ -336,6 +336,38 @@ export type Database = {
           },
         ]
       }
+      org_voice_credentials: {
+        Row: {
+          encrypted_key: string
+          org_id: string
+          tested_at: string
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          encrypted_key: string
+          org_id: string
+          tested_at?: string
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          encrypted_key?: string
+          org_id?: string
+          tested_at?: string
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_voice_credentials_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       org_voices: {
         Row: {
           consent_text: string

@@ -17,6 +17,8 @@ export const Route = createFileRoute("/_app/team")({
       { name: "description", content: "Invite colleagues and manage roles." },
       { property: "og:title", content: "Team — Relay" },
       { property: "og:description", content: "Invite colleagues and manage roles." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Team,

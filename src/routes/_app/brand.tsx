@@ -22,6 +22,8 @@ export const Route = createFileRoute("/_app/brand")({
       { name: "description", content: "Set your organization's logo, colors, fonts and narrator voice." },
       { property: "og:title", content: "Brand kit — Relay" },
       { property: "og:description", content: "Logo, colors, fonts and voice for every course." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: BrandPage,

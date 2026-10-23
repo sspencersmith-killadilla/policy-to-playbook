@@ -10,6 +10,8 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "Upload a code of conduct or SOP. Relay drafts an editable, branded training course with a quiz, then exports slides, narrated video or SCORM." },
       { property: "og:title", content: "Relay — Turn any policy into branded training" },
       { property: "og:description", content: "Policy in, training out. Slides, narrated video and SCORM exports for your LMS." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Index,

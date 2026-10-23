@@ -19,6 +19,8 @@ export const Route = createFileRoute("/_app/new")({
       { name: "description", content: "Upload a policy document to generate a training course." },
       { property: "og:title", content: "New course — Relay" },
       { property: "og:description", content: "Upload a policy document to generate a training course." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: NewCourse,

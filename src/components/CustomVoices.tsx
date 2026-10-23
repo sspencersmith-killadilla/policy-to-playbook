@@ -13,6 +13,8 @@ import { customVoiceValue, MAX_ORG_VOICES, VOICE_CONSENT_TEXT, VOICE_READING_SCR
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { VoiceConnection } from "@/components/VoiceConnection";
+import { canManageVoiceConnection } from "@/lib/voice-credentials";
 
 export function CustomVoices() {
   const { current } = useOrg();
@@ -22,9 +24,12 @@ export function CustomVoices() {
   const remove = useServerFn(deleteOrgVoice);
   const narrate = useServerFn(narrateText);
   const team = useOrgVoices();
-  const enabledQ = useQuery({ queryKey: ["voice-cloning-status"], queryFn: () => status() });
+  const enabledQ = useQuery({ queryKey: ["voice-cloning-status", current?.org_id], enabled: !!current, queryFn: () => {
+    if (!current) throw new Error("Select an organization first.");
+    return status({ data: { orgId: current.org_id } });
+  } });
   const editable = canEdit(current?.role);
-  const isOwner = current?.role === "owner";
+  const isOwner = canManageVoiceConnection(current?.role);
 
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -103,18 +108,10 @@ export function CustomVoices() {
         <h2 className="font-semibold">Custom voices</h2>
         <p className="text-sm text-muted-foreground">Turn a team member's own voice into an AI voice for your training.</p>
       </div>
+      {enabledQ.isError && <p role="alert" className="text-sm text-destructive">Could not check your voice connection. <Button size="sm" variant="ghost" onClick={() => enabledQ.refetch()}>Retry</Button></p>}
+      {isOwner && current && !enabledQ.isLoading && <VoiceConnection key={current.org_id} orgId={current.org_id} enabled={!!enabled} onChange={() => enabledQ.refetch()} />}
       {enabledQ.isLoading ? <Loader2 className="animate-spin" /> : !enabled ? (
-        isOwner ? (
-          <div className="space-y-2 rounded bg-muted p-3 text-sm">
-            <p className="font-medium">Not set up yet. To turn it on:</p>
-            <ol className="list-decimal space-y-1 pl-5">
-              <li>Get a paid ElevenLabs plan with voice cloning (Starter or higher).</li>
-              <li>In ElevenLabs: profile → API Keys → Create API key (allow Text to Speech and Voices), then copy it.</li>
-              <li>In the Lovable editor chat, ask "connect ElevenLabs" and paste the key into the card that opens.</li>
-            </ol>
-            <a href="/guide#custom-voices" className="text-primary underline">Learn more</a>
-          </div>
-        ) : <p className="rounded bg-muted p-3 text-sm">Not set up yet. Ask an owner to set this up.</p>
+        isOwner ? <a href="/guide#custom-voices" className="text-sm text-primary underline">ElevenLabs setup guide</a> : <p className="rounded bg-muted p-3 text-sm">Not set up yet. Ask an owner to set this up.</p>
       ) : (
         <>
           {team.voices.length === 0 && <p className="text-sm text-muted-foreground">No team voices yet.</p>}

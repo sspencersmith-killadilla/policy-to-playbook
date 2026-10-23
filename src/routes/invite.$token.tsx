@@ -12,6 +12,8 @@ export const Route = createFileRoute("/invite/$token")({
       { name: "description", content: "Accept your invitation to join an organization." },
       { property: "og:title", content: "Join your team — Relay" },
       { property: "og:description", content: "Accept your invitation." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Invite,

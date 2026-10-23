@@ -104,7 +104,17 @@ export function CustomVoices() {
         <p className="text-sm text-muted-foreground">Turn a team member's own voice into an AI voice for your training.</p>
       </div>
       {enabledQ.isLoading ? <Loader2 className="animate-spin" /> : !enabled ? (
-        <p className="rounded bg-muted p-3 text-sm">Not set up yet — an owner can connect a voice-cloning account (ElevenLabs) to turn this on.</p>
+        isOwner ? (
+          <div className="space-y-2 rounded bg-muted p-3 text-sm">
+            <p className="font-medium">Not set up yet. To turn it on:</p>
+            <ol className="list-decimal space-y-1 pl-5">
+              <li>Get a paid ElevenLabs plan with voice cloning (Starter or higher).</li>
+              <li>In ElevenLabs: profile → API Keys → Create API key (allow Text to Speech and Voices), then copy it.</li>
+              <li>In the Lovable editor chat, ask "connect ElevenLabs" and paste the key into the card that opens.</li>
+            </ol>
+            <a href="/guide#custom-voices" className="text-primary underline">Learn more</a>
+          </div>
+        ) : <p className="rounded bg-muted p-3 text-sm">Not set up yet. Ask an owner to set this up.</p>
       ) : (
         <>
           {team.voices.length === 0 && <p className="text-sm text-muted-foreground">No team voices yet.</p>}

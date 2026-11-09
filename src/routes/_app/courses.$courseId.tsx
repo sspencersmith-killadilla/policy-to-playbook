@@ -227,7 +227,7 @@ function SlideForm({ slide, onChange, disabled, courseId, brand, brandKitId }: {
   async function preview() {
     setPlaying(true);
     try {
-      const { wavBase64 } = await narrate({ data: { orgId: current!.org_id, text: slide.notes, voice: slide.voice || brand.voice } });
+      const { wavBase64 } = await narrate({ data: { orgId: current!.org_id, text: slide.notes, voice: slide.voice || brand.voice, brandKitId } });
       const a = new Audio(`data:audio/wav;base64,${wavBase64}`);
       a.onended = () => setPlaying(false);
       await a.play();
@@ -336,8 +336,8 @@ function Versions({ courseId, onRestore, disabled, currentTitle, currentContent 
   );
 }
 
-function ExportMenu({ courseId, title, content, approved, passScore }: { courseId: string; title: string; content: CourseContent; approved: boolean; passScore: number }) {
-  const { brand, current } = useOrg();
+function ExportMenu({ courseId, title, content, brand, brandKitId, approved, passScore }: { courseId: string; title: string; content: CourseContent; brand: Brand; brandKitId: string | null; approved: boolean; passScore: number }) {
+  const { current } = useOrg();
   const narrate = useServerFn(narrateText);
   const hiddenRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);

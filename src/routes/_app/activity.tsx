@@ -22,7 +22,7 @@ const labels: Record<string, string> = {
   "document.uploaded": "Uploaded a document",
   "course.generated": "Generated a course with AI",
   "course.approved": "Approved a course",
-  "brand.updated": "Updated the brand kit",
+  "brand.updated": "Updated a brand kit",
   "member.invited": "Invited",
   "member.removed": "Removed a member",
   "clip.generated": "Generated an AI scene clip",

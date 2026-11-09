@@ -12,6 +12,7 @@
 ## Architecture rules
 - Multi-tenant: every app table has org_id; access is enforced by RLS via is_org_member/has_org_role (roles live in org_members). Why: org data isolation.
 - Course slides and quiz live as JSON in courses.content; snapshots go to course_versions. Why: simple editing and version restore.
+- Organizations have exactly four brand kits (slots A–D), and courses reference their selected kit with brand_kit_id; missing references fall back to Kit A. Why: courses can use different branding without changing one another.
 - AI calls (Responses API with strict JSON schema, TTS) live in src/lib/ai.server.ts and are exposed only through authenticated server functions in src/lib/ai.functions.ts. Why: keep keys server-side and verify org role.
 - Exports (PPTX, SCORM, PDF print, narrated video via WebCodecs + mp4-muxer with MediaRecorder fallback) run in the browser in src/lib/exports.ts. Why: the server runtime cannot run FFmpeg or long jobs.
 - Exports require course status "approved"; any edit resets to draft. Why: human review before distribution.

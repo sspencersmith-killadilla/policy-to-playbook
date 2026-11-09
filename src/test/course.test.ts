@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canEdit, scoreQuiz, MONTHLY_GENERATION_LIMIT, type QuizQuestion } from "@/lib/course";
+import { BRAND_SLOTS, canEdit, DEFAULT_BRAND, resolveCourseBrand, scoreQuiz, MONTHLY_GENERATION_LIMIT, type BrandKit, type QuizQuestion } from "@/lib/course";
 
 const q = (c: number): QuizQuestion => ({ id: String(c), question: "", options: ["a", "b", "c", "d"], correct_index: c, explanation: "", source: "" });
 

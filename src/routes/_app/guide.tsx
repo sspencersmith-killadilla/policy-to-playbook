@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_app/guide")({
 
 const sections = [
   { id: "start", title: "1. Getting started" },
-  { id: "brand", title: "2. Set up your brand kit" },
+  { id: "brand", title: "2. Set up your brand kits" },
   { id: "team", title: "3. Invite your team" },
   { id: "create", title: "4. Create a course from a policy" },
   { id: "edit", title: "5. Edit slides and the quiz" },

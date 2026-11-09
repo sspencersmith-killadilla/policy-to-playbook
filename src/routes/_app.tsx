@@ -33,7 +33,7 @@ function AppLayout() {
 const nav = [
   { to: "/dashboard", label: "Courses", icon: LayoutGrid },
   { to: "/new", label: "New course", icon: Plus },
-  { to: "/brand", label: "Brand kit", icon: Palette },
+  { to: "/brand", label: "Brand kits", icon: Palette },
   { to: "/team", label: "Team", icon: Users },
   { to: "/activity", label: "Activity", icon: History },
   { to: "/guide", label: "User guide", icon: BookOpen },

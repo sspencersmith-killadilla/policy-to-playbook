@@ -68,7 +68,7 @@ function Dashboard() {
             return (
               <Link key={c.id} to="/courses/$courseId" params={{ courseId: c.id }} className="group overflow-hidden rounded-lg border bg-card transition hover:shadow-lg">
                 {content.slides[0] ? (
-                  <ScaledSlide slide={content.slides[0]} brand={brand} index={0} total={content.slides.length} />
+                  <ScaledSlide slide={content.slides[0]} brand={resolveCourseBrand(brandKits, c.brand_kit_id)} index={0} total={content.slides.length} />
                 ) : <div className="aspect-video bg-muted" />}
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2">

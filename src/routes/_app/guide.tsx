@@ -78,7 +78,7 @@ function Guide() {
               <li>Only owners can test, replace or remove the connection. Each organization has its own encrypted key; it is never displayed again. Removing it keeps existing team voices but pauses their use until the same ElevenLabs account is reconnected. Replace with a key from the same account to keep existing voices usable. ElevenLabs bills your account for usage.</li>
             </ol></li>
         </ul>
-        <Tip>The slide preview on the page updates as you change things. Click <b>Save brand kit</b> when done.</Tip>
+        <Tip>The slide preview updates as you change things. Click <b>Save kit</b> when done. Changing a course's brand choice moves it back to draft so it can be reviewed and approved again.</Tip>
 
         <H id="team">3. Invite your team</H>
         <ol>

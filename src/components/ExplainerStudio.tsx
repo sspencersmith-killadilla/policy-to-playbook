@@ -30,8 +30,8 @@ async function signed(path: string | null | undefined) {
   return (await supabase.storage.from("documents").createSignedUrl(path, 3600)).data?.signedUrl ?? null;
 }
 
-export function ExplainerStudio({ open, onOpenChange, courseId, title, content, brand, approved, editable, passScore, onSaved }: {
-  open: boolean; onOpenChange: (o: boolean) => void; courseId: string; title: string; content: CourseContent; brand: Brand;
+export function ExplainerStudio({ open, onOpenChange, courseId, title, content, brand, brandKitId, approved, editable, passScore, onSaved }: {
+  open: boolean; onOpenChange: (o: boolean) => void; courseId: string; title: string; content: CourseContent; brand: Brand; brandKitId: string | null;
   approved: boolean; editable: boolean; passScore: number; onSaved: (e: Explainer) => void;
 }) {
   const { current } = useOrg();

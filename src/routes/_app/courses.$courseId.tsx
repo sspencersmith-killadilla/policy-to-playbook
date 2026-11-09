@@ -54,6 +54,7 @@ function Editor() {
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState<CourseContent | null>(null);
+  const [brandKitId, setBrandKitId] = useState<string | null>(null);
   const [status, setStatus] = useState("draft");
   const [sel, setSel] = useState(0);
   const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");

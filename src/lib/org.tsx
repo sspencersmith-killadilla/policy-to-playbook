@@ -8,7 +8,9 @@ export type OrgMembership = { org_id: string; role: "owner" | "editor" | "viewer
 type Ctx = {
   orgs: OrgMembership[];
   current: OrgMembership | null;
+  /** Kit A, kept for organization-level defaults. Courses use their own selected kit. */
   brand: Brand;
+  brandKits: BrandKit[];
   setCurrent: (id: string) => void;
   refresh: () => Promise<void>;
   loading: boolean;

@@ -679,7 +679,7 @@ async function recordRealtime(
         const gt = (performance.now() - t0) / 1000;
         try { check(); } catch (e) { clearInterval(timer); reject(e); return; }
         if (gt >= total) { clearInterval(timer); resolve(); return; }
-        const i = starts.findLastIndex((s) => s <= gt), clip = assets[Math.max(0, i)]?.clip;
+        const i = starts.reduce((k, s, j) => (s <= gt ? j : k), 0), clip = assets[Math.max(0, i)]?.clip;
         if (clip && clip.paused && !clip.ended && gt - starts[i]! < clip.duration - 0.05) {
           assets.forEach((a) => a.clip && a.clip !== clip && a.clip.pause());
           clip.currentTime = clipTimeAt(gt - starts[i]!, clip.duration); clip.play().catch(() => {});

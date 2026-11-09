@@ -190,7 +190,9 @@ export const narrateText = createServerFn({ method: "POST" })
       const { data: v } = await supabase.from("org_voices").select("provider_voice_id").eq("id", data.voice.slice(7)).eq("org_id", data.orgId).maybeSingle();
       if (v) providerVoice = v.provider_voice_id;
       else {
-        const { data: bk } = await supabase.from("brand_kits").select("voice").eq("org_id", data.orgId).maybeSingle();
+        let query = supabase.from("brand_kits").select("voice").eq("org_id", data.orgId);
+        query = data.brandKitId ? query.eq("id", data.brandKitId) : query.eq("slot", "A");
+        const { data: bk } = await query.maybeSingle();
         data.voice = bk?.voice && /^[A-Za-z]+$/.test(bk.voice) ? bk.voice : "Kore";
       }
     }

@@ -32,7 +32,7 @@ function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("courses")
-        .select("id, title, description, status, content, updated_at")
+        .select("id, title, description, status, content, brand_kit_id, updated_at")
         .eq("org_id", current!.org_id)
         .order("updated_at", { ascending: false });
       if (error) throw error;

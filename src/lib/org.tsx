@@ -64,7 +64,7 @@ export function OrgProvider({ userId, children }: { userId: string; children: Re
         await qc.invalidateQueries({ queryKey: ["orgs", userId] });
       },
     }),
-    [orgs, current, brandQ.data, orgsQ.isLoading, qc, userId],
+    [orgs, current, brandKits, brandQ.isLoading, orgsQ.isLoading, qc, userId],
   );
   return <OrgContext.Provider value={value}>{children}</OrgContext.Provider>;
 }

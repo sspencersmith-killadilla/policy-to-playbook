@@ -196,7 +196,7 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
       const rec = await buildExplainerVideo({
         scenes, brand, pictures, recordings, clips, signal, width: W, height: W === 1920 ? 1080 : 720,
         burnCaptions: kind === "mp4", videoStyle: ex.style ?? "animated", music: ex.music ?? true, labels: LABELS,
-        narrate: async (text, sc) => (await narrate({ data: { orgId: current.org_id, text, voice: sc.voice || brand.voice } })).wavBase64,
+        narrate: async (text, sc) => (await narrate({ data: { orgId: current.org_id, text, voice: sc.voice || brand.voice, brandKitId: brandKitId ?? null } })).wavBase64,
         onProgress: (msg, p) => {
           const pct = 30 + p * 0.68;
           const left = p > 40 ? ((Date.now() - t0) / p) * (100 - p) / 1000 : 0;

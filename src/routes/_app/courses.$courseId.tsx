@@ -40,8 +40,7 @@ export const Route = createFileRoute("/_app/courses/$courseId")({
 
 function Editor() {
   const { courseId } = Route.useParams();
-  const { current, brand } = useOrg();
-  useBrandFonts(brand);
+  const { current, brandKits } = useOrg();
   const qc = useQueryClient();
   const editable = canEdit(current?.role);
   const q = useQuery({

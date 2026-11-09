@@ -15,4 +15,25 @@ describe("course rules", () => {
   it("allows 30 AI generations per org per 30 days", () => {
     expect(MONTHLY_GENERATION_LIMIT).toBe(30);
   });
+
+  const kit = (slot: "A" | "B" | "C" | "D", color: string): BrandKit => ({
+    ...DEFAULT_BRAND, id: `kit-${slot}`, org_id: "org-1", slot, name: `Kit ${slot}`, primary_color: color,
+  });
+  const kits = BRAND_SLOTS.map((slot, i) => kit(slot, `#00000${i}`));
+
+  it("offers exactly four brand kits: A, B, C and D", () => {
+    expect(BRAND_SLOTS).toEqual(["A", "B", "C", "D"]);
+    expect(kits).toHaveLength(4);
+  });
+
+  it("keeps each course on its own selected brand kit", () => {
+    expect(resolveCourseBrand(kits, "kit-B").primary_color).toBe("#000001");
+    expect(resolveCourseBrand(kits, "kit-D").primary_color).toBe("#000003");
+    expect(resolveCourseBrand(kits, "kit-A").primary_color).toBe("#000000");
+  });
+
+  it("keeps existing or missing brand links on Kit A", () => {
+    expect(resolveCourseBrand(kits, null).id).toBe("kit-A");
+    expect(resolveCourseBrand(kits, "deleted-kit").id).toBe("kit-A");
+  });
 });

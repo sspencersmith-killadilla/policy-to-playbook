@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { ArrowDown, ArrowUp, Copy, Trash2, Plus, Sparkles, Play, Download, CheckCircle2, Volume2, Loader2, History, Clapperboard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
-import { canEdit, DEFAULT_BRAND, emptySlide, resolveCourseBrand, VOICE_CHOICES, voiceLabel, LAYOUTS, newId, normalizeContent, type Brand, type CourseContent, type Slide, type QuizQuestion } from "@/lib/course";
+import { canEdit, emptySlide, resolveCourseBrand, VOICE_CHOICES, voiceLabel, LAYOUTS, newId, normalizeContent, type Brand, type CourseContent, type Slide, type QuizQuestion } from "@/lib/course";
 import { useOrgVoices } from "@/lib/useOrgVoices";
 import { customVoiceValue } from "@/lib/voices";
 import { regenerateSlide, narrateText, startSceneClip, checkSceneClip, suggestClipPrompts } from "@/lib/ai.functions";
@@ -379,7 +379,7 @@ function ExportMenu({ courseId, title, content, brand, brandKitId, approved, pas
         const videoOpts = asVideo ? {
             slides: content.slides, images: imgs, signal: abort.current.signal,
             clips: await Promise.all(content.slides.map(async (s) => s.clip_path ? (await supabase.storage.from("documents").createSignedUrl(s.clip_path, 3600)).data?.signedUrl ?? null : null)),
-            narrate: async (text: string, slide: Slide) => slide.voice_path ? await recordingBase64(slide.voice_path) : (await narrate({ data: { orgId: current!.org_id, text, voice: slide.voice || brand.voice } })).wavBase64,
+            narrate: async (text: string, slide: Slide) => slide.voice_path ? await recordingBase64(slide.voice_path) : (await narrate({ data: { orgId: current!.org_id, text, voice: slide.voice || brand.voice, brandKitId } })).wavBase64,
             onProgress: (msg: string, pct: number) => setJob({ msg: msg + eta(pct), pct: pct * (kind === "scorm" ? 0.95 : 1) }),
             width: W, height: W === 1920 ? 1080 : 720,
             onFallback: () => toast.info("This browser can't use fast video building, so the video will record in real time. Keep this tab open and in front."),

@@ -95,7 +95,7 @@ export function CreateOrg({ onDone }: { onDone?: () => void }) {
     <div className="flex min-h-screen items-center justify-center px-4">
       <form onSubmit={create} className="w-full max-w-md space-y-4">
         <h1 className="text-3xl font-semibold">Name your organization</h1>
-        <p className="text-muted-foreground">Courses, brand kit and team live inside an organization. You can invite colleagues next.</p>
+        <p className="text-muted-foreground">Courses, brand kits and team live inside an organization. You can invite colleagues next.</p>
         <Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme Health" />
         <Button type="submit" className="w-full" disabled={busy}>Create organization</Button>
       </form>

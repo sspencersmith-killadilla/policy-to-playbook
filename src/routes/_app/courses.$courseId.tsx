@@ -93,7 +93,7 @@ function Editor() {
       qc.invalidateQueries({ queryKey: ["courses"] });
     }, 1200);
     return () => clearTimeout(t);
-  }, [content, title]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [content, title, brandKitId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (q.isLoading || !content) return <p className="p-10 text-muted-foreground">Loading…</p>;
   if (q.error) return <p className="p-10 text-destructive">{(q.error as Error).message}</p>;
@@ -135,14 +135,18 @@ function Editor() {
     <div className="flex h-screen flex-col">
       <header className="flex items-center gap-3 border-b bg-card px-6 py-3">
         <Input value={title} disabled={!editable} onChange={(e) => { dirty.current = true; setTitle(e.target.value); }} className="font-display max-w-xl border-transparent text-xl font-semibold shadow-none focus-visible:border-input" />
+        <Select value={brandKitId ?? ""} disabled={!editable} onValueChange={(id) => { dirty.current = true; setBrandKitId(id); }}>
+          <SelectTrigger aria-label="Course brand" className="w-52"><SelectValue placeholder="Course brand" /></SelectTrigger>
+          <SelectContent>{brandKits.map((kit) => <SelectItem key={kit.id} value={kit.id}>{kit.slot} · {kit.name}</SelectItem>)}</SelectContent>
+        </Select>
         <Badge variant={status === "approved" ? "default" : "secondary"} className="capitalize">{status}</Badge>
         <span className="text-xs text-muted-foreground">{saving === "saving" ? "Saving…" : saving === "saved" ? "All changes saved" : ""}</span>
         <div className="ml-auto flex gap-2">
           {editable && status !== "approved" && <Button variant="outline" onClick={approve}><CheckCircle2 /> Approve</Button>}
           <Button variant="outline" asChild><Link to="/present/$courseId" params={{ courseId }}><Play /> Present</Link></Button>
           <Button variant="outline" onClick={() => setExplainerOpen(true)}><Clapperboard /> Explainer video</Button>
-          <ExportMenu courseId={courseId} title={title} content={content} approved={status === "approved"} passScore={q.data!.pass_score} />
-          <ExplainerStudio open={explainerOpen} onOpenChange={setExplainerOpen} courseId={courseId} title={title} content={content}
+          <ExportMenu courseId={courseId} title={title} content={content} brand={brand} brandKitId={brandKitId} approved={status === "approved"} passScore={q.data!.pass_score} />
+          <ExplainerStudio open={explainerOpen} onOpenChange={setExplainerOpen} courseId={courseId} title={title} content={content} brand={brand} brandKitId={brandKitId}
             approved={status === "approved"} editable={editable} passScore={q.data!.pass_score}
             onSaved={(explainer) => setContent((c) => (c ? { ...c, explainer } : c))} />
         </div>
@@ -184,7 +188,7 @@ function Editor() {
                   </div>
                 )}
               </div>
-              <SlideForm key={slide.id} slide={slide} onChange={setSlide} disabled={!editable} courseId={courseId} />
+              <SlideForm key={slide.id} slide={slide} onChange={setSlide} disabled={!editable} courseId={courseId} brand={brand} brandKitId={brandKitId} />
             </div>
           ) : <p className="p-6">No slides.</p>}
         </TabsContent>
@@ -199,10 +203,10 @@ function Editor() {
   );
 }
 
-function SlideForm({ slide, onChange, disabled, courseId }: { slide: Slide; onChange: (s: Slide) => void; disabled: boolean; courseId: string }) {
+function SlideForm({ slide, onChange, disabled, courseId, brand, brandKitId }: { slide: Slide; onChange: (s: Slide) => void; disabled: boolean; courseId: string; brand: Brand; brandKitId: string | null }) {
   const regen = useServerFn(regenerateSlide);
   const narrate = useServerFn(narrateText);
-  const { current, brand } = useOrg();
+  const { current } = useOrg();
   const [instruction, setInstruction] = useState("");
   const [busy, setBusy] = useState(false);
   const [playing, setPlaying] = useState(false);

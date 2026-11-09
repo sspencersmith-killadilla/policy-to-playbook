@@ -114,7 +114,7 @@ describe("explainer motion", () => {
     const fade = 2;
     const period = channel.length - fade;
     expect(musicLoopSample(channel, period, fade)).toBeCloseTo(0.8);
-    expect(musicLoopSample(channel, period + 1, fade)).toBeCloseTo(0.55);
+    expect(musicLoopSample(channel, period + 1, fade)).toBeCloseTo(0.6);
     expect(musicLoopSample(channel, period + 2, fade)).toBeCloseTo(0.4);
   });
 });

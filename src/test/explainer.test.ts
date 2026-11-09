@@ -68,3 +68,43 @@ describe("explainer timing", () => {
     expect(cues[2]!.end).toBeCloseTo(20);
   });
 });
+
+import { countUp, footageNeeded, playsFootage, sceneStyle, transitionFor, cameraAt, kenBurnsZoom, musicGain } from "@/lib/explainer";
+
+describe("explainer video styles", () => {
+  it("scene style overrides the video style, and the closing card is always animated", () => {
+    expect(sceneStyle({ id: "a" }, "footage")).toBe("footage");
+    expect(sceneStyle({ id: "a", style: "animated" }, "footage")).toBe("animated");
+    expect(sceneStyle({ id: "a" }, undefined)).toBe("animated");
+    expect(sceneStyle({ id: "relay-explainer-closing", style: "footage" }, "footage")).toBe("animated");
+  });
+  it("a footage scene without a clip falls back to animation", () => {
+    expect(playsFootage({ id: "a" }, "footage", false)).toBe(false);
+    expect(playsFootage({ id: "a" }, "footage", true)).toBe(true);
+    expect(playsFootage({ id: "a" }, "animated", true)).toBe(false);
+  });
+  it("only footage scenes without a clip need one made", () => {
+    const s = [{ id: "a" }, { id: "b", clip_path: "x.mp4" }, { id: "c", style: "animated" as const }];
+    expect(footageNeeded(s, "footage").map((x) => x.id)).toEqual(["a"]);
+  });
+});
+
+describe("explainer motion", () => {
+  it("no transition into the first scene, varied after", () => {
+    expect(transitionFor(0)).toBeNull();
+    expect(new Set([1, 2, 3, 4].map(transitionFor)).size).toBe(4);
+  });
+  it("big numbers count up to their exact value", () => {
+    expect(countUp("73% of incidents", 0)).toBe("0% of incidents");
+    expect(countUp("73% of incidents", 1)).toBe("73% of incidents");
+    expect(countUp("1,250 reports", 1)).toBe("1,250 reports");
+    expect(countUp("No numbers", 0.5)).toBe("No numbers");
+  });
+  it("camera never shows the frame edge and photo zoom grows 12%", () => {
+    expect(cameraAt(0, 5, 0).scale).toBeGreaterThanOrEqual(1.02);
+    expect(kenBurnsZoom(1.5, 5, 5)).toBeCloseTo(1.68);
+  });
+  it("music is quieter under the voice", () => {
+    expect(musicGain(true)).toBeLessThan(musicGain(false));
+  });
+});

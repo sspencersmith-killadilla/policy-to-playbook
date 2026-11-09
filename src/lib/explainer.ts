@@ -1,5 +1,5 @@
 // Pure timing helpers for the explainer video (shared by the renderer, captions and tests).
-import type { ExplainerScene } from "./course";
+import type { ExplainerScene, ExplainerStyle } from "./course";
 
 export const EXPLAINER_CLOSING_ID = "relay-explainer-closing";
 
@@ -88,4 +88,62 @@ const vttTime = (t: number) => {
 
 export function cuesToVtt(cues: Cue[]): string {
   return "WEBVTT\n\n" + cues.map((c, i) => `${i + 1}\n${vttTime(c.start)} --> ${vttTime(c.end)}\n${c.text}\n`).join("\n");
+}
+
+/* ---------------- Motion & style helpers ---------------- */
+
+/** A scene's effective look: its own choice, else the video's, else animated. The closing card is always animated. */
+export function sceneStyle(scene: { id: string; style?: ExplainerStyle | null }, videoStyle?: ExplainerStyle | null): ExplainerStyle {
+  if (scene.id === EXPLAINER_CLOSING_ID) return "animated";
+  return scene.style ?? videoStyle ?? "animated";
+}
+
+/** Footage scenes that still need an AI clip made. */
+export function footageNeeded<T extends { id: string; style?: ExplainerStyle | null; clip_path?: string | null }>(scenes: T[], videoStyle?: ExplainerStyle | null): T[] {
+  return scenes.filter((s) => sceneStyle(s, videoStyle) === "footage" && !s.clip_path);
+}
+
+/** Footage plays only when the scene wants footage and a clip exists; otherwise it falls back to animation. */
+export function playsFootage(scene: { id: string; style?: ExplainerStyle | null }, videoStyle: ExplainerStyle | null | undefined, hasClip: boolean): boolean {
+  return hasClip && sceneStyle(scene, videoStyle) === "footage";
+}
+
+export type Transition = "fade" | "slide" | "wipe" | "zoom";
+const TRANSITIONS: Transition[] = ["slide", "wipe", "zoom", "fade"];
+/** Transition into scene i (none for the first scene). */
+export function transitionFor(i: number): Transition | null {
+  return i <= 0 ? null : TRANSITIONS[(i - 1) % TRANSITIONS.length]!;
+}
+export const TRANSITION_SECONDS = 0.6;
+
+export const easeInOut = (x: number) => { const c = Math.max(0, Math.min(1, x)); return c < 0.5 ? 4 * c * c * c : 1 - Math.pow(-2 * c + 2, 3) / 2; };
+
+/** Slow camera drift across a scene: starts 2% in (so edges never show), pushes in 4% more, alternating drift direction. */
+export function cameraAt(t: number, d: number, i: number) {
+  const p = easeInOut(t / Math.max(0.1, d));
+  const dir = i % 2 === 0 ? 1 : -1;
+  return { scale: 1.02 + 0.04 * p, dx: dir * (p - 0.5) * 12, dy: (p - 0.5) * -6 };
+}
+
+/** Ken Burns zoom on photos: grows 1.0 -> 1.12 of the saved zoom, keeping the focal point. */
+export function kenBurnsZoom(baseZoom: number, t: number, d: number) {
+  return baseZoom * (1 + 0.12 * easeInOut(t / Math.max(0.1, d)));
+}
+
+/** Counts the first number in a heading up from 0 (e.g. "73% of incidents"), keeping its formatting. */
+export function countUp(text: string, p: number): string {
+  const m = text.match(/\d[\d,]*(\.\d+)?/);
+  if (!m) return text;
+  const raw = m[0], target = Number(raw.replace(/,/g, ""));
+  if (!Number.isFinite(target)) return text;
+  const dec = m[1] ? m[1].length - 1 : 0;
+  const v = target * easeInOut(p);
+  let out = v.toFixed(dec);
+  if (raw.includes(",")) out = Number(out).toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  return text.slice(0, m.index) + out + text.slice((m.index ?? 0) + raw.length);
+}
+
+/** Music bed gain: quiet under the voice, a little louder in pauses. */
+export function musicGain(voiceActive: boolean) {
+  return voiceActive ? 0.045 : 0.11;
 }

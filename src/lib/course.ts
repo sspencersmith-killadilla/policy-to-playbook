@@ -145,7 +145,14 @@ export type ExplainerScene = {
   voice_path?: string | null;
   /** Photo focal point in normalized source-image coordinates and cover zoom. */
   image_frame?: { x: number; y: number; zoom: number } | null;
+  /** Per-scene look; empty follows the video's style. */
+  style?: ExplainerStyle | null;
+  /** AI footage clip made for this scene (private documents bucket). */
+  clip_path?: string | null;
+  clip_prompt?: string | null;
 };
+
+export type ExplainerStyle = "animated" | "footage";
 
 export type ExplainerTone = "friendly" | "formal" | "plain";
 
@@ -154,6 +161,10 @@ export type Explainer = {
   tone: ExplainerTone;
   illustrations: boolean;
   includeClips: boolean;
+  /** Whole-video look; scenes can override. Missing means animated. */
+  style?: ExplainerStyle;
+  /** Soft background music under the narration. */
+  music?: boolean;
   scenes: ExplainerScene[];
 };
 

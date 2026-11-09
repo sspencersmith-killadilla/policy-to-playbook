@@ -1,11 +1,12 @@
 // Browser-only renderer for the explainer video: animated canvas scenes + narration, encoded to MP4.
 import type { Brand, ExplainerScene } from "./course";
 import type { Chapter, RecordedVideo } from "./exports";
-import { captionCues, cuesToVtt, EXPLAINER_CLOSING_ID, photoCoverRect, revealTimes, sceneDuration, sceneNarration, withExplainerClosing, type Cue } from "./explainer";
+import { cameraAt, captionCues, countUp, cuesToVtt, EXPLAINER_CLOSING_ID, kenBurnsZoom, musicGain, normalizePhotoFrame, photoCoverRect, playsFootage, revealTimes, sceneDuration, sceneNarration, transitionFor, TRANSITION_SECONDS, withExplainerClosing, easeInOut, type Cue } from "./explainer";
+import type { ExplainerStyle } from "./course";
 
 export type ExplainerVideo = RecordedVideo & { vtt: string; titles: string[] };
 
-type Assets = { pic: ImageBitmap | null; clip: HTMLVideoElement | null; clipAudio: AudioBuffer | null };
+type Assets = { pic: ImageBitmap | null; clip: HTMLVideoElement | null; clipAudio: AudioBuffer | null; footage: boolean };
 
 const clamp = (x: number) => Math.max(0, Math.min(1, x));
 const ease = (x: number) => 1 - Math.pow(1 - clamp(x), 3);
@@ -101,9 +102,69 @@ class Painter {
     ctx.textAlign = "left";
   }
 
+  /** Thin brand progress bar and a short section tag that slides in at the start of each scene. */
+  chrome(gt: number, total: number, i: number, n: number, label: string, lt: number, dark: boolean) {
+    const { ctx, W, H, S, brand } = this;
+    ctx.globalAlpha = 0.25; ctx.fillStyle = dark ? "#ffffff" : brand.primary_color;
+    ctx.fillRect(0, H - 5 * S, W, 5 * S);
+    ctx.globalAlpha = 1;
+    const g = ctx.createLinearGradient(0, 0, W, 0);
+    g.addColorStop(0, brand.primary_color); g.addColorStop(1, brand.accent_color);
+    ctx.fillStyle = g; ctx.fillRect(0, H - 5 * S, W * clamp(gt / total), 5 * S);
+    const k = appear(lt, 0.3, 0.5) * (1 - appear(lt, 3.2, 0.5));
+    if (k <= 0 || !label) return;
+    ctx.globalAlpha = k;
+    ctx.font = this.font(16, 700, false);
+    const text = `${String(i + 1).padStart(2, "0")} / ${String(n).padStart(2, "0")}  ·  ${label.toUpperCase()}`;
+    const w = ctx.measureText(text).width + 36 * S, x = 80 * S - (1 - k) * 30 * S, y = 30 * S;
+    ctx.fillStyle = dark ? "rgba(0,0,0,0.45)" : brand.primary_color;
+    rrect(ctx, x, y, w, 32 * S, 16 * S); ctx.fill();
+    ctx.fillStyle = "#ffffff"; ctx.textAlign = "left"; ctx.fillText(text, x + 18 * S, y + 22 * S);
+    ctx.globalAlpha = 1;
+  }
+
+  /** Full-bleed AI footage with the scene's words animated over it. */
+  footage(sc: ExplainerScene, t: number, d: number, a: Assets) {
+    const { ctx, W, H, S, brand } = this;
+    const clip = a.clip!;
+    const p = clamp(t / d);
+    cover(ctx, clip, clip.videoWidth || W, clip.videoHeight || H, W, H, 1.02 + 0.08 * easeInOut(p), (p - 0.5) * -30 * S);
+    const shade = ctx.createLinearGradient(0, H * 0.35, 0, H);
+    shade.addColorStop(0, "rgba(0,0,0,0)"); shade.addColorStop(1, "rgba(0,0,0,0.78)");
+    ctx.fillStyle = shade; ctx.fillRect(0, 0, W, H);
+    const k = appear(t, 0.3, 0.7);
+    ctx.globalAlpha = k;
+    ctx.fillStyle = brand.accent_color; ctx.fillRect(80 * S, H - 330 * S + (1 - k) * 20 * S, 70 * S * k, 6 * S);
+    ctx.fillStyle = "#ffffff";
+    const head = sc.kind === "fact" ? countUp(sc.heading, (t - 0.3) / 1.5) : sc.kind === "quote" ? `“${sc.quote || sc.heading}”` : sc.heading;
+    ctx.font = this.font(sc.kind === "fact" ? 72 : sc.kind === "quote" ? 36 : 50, 700, true, sc.kind === "quote");
+    const hl = wrap(ctx, head, W - 300 * S).slice(0, sc.kind === "quote" ? 4 : 2);
+    hl.forEach((l, i) => ctx.fillText(l, 80 * S, H - 270 * S + i * (sc.kind === "quote" ? 44 : 58) * S + (1 - k) * 24 * S));
+    ctx.globalAlpha = 1;
+    const items = [...sc.items, ...sc.items2.map((x) => `Don't: ${x}`)].slice(0, 4);
+    const rt = revealTimes(items.length, d);
+    let x = 80 * S;
+    const y = H - 270 * S + hl.length * 58 * S + 10 * S;
+    ctx.font = this.font(22, 600, false);
+    items.forEach((it, i) => {
+      const ik = appear(t, rt[i]! + 0.4);
+      if (ik <= 0) return;
+      const txt = it.length > 48 ? it.slice(0, 46) + "…" : it;
+      const w = ctx.measureText(txt).width + 36 * S;
+      if (x + w > W - 60 * S) return;
+      ctx.globalAlpha = ik;
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      rrect(ctx, x, y + (1 - ik) * 16 * S, w, 44 * S, 22 * S); ctx.fill();
+      ctx.fillStyle = brand.primary_color; ctx.fillText(txt, x + 18 * S, y + 29 * S + (1 - ik) * 16 * S);
+      ctx.globalAlpha = 1;
+      x += w + 12 * S;
+    });
+  }
+
   scene(sc: ExplainerScene, t: number, d: number, a: Assets) {
     const { ctx, W, H, S, brand } = this;
     const R = (n: number) => revealTimes(n, d);
+    if (a.footage && a.clip && sc.kind !== "illustration" && sc.kind !== "scenario") { this.footage(sc, t, d, a); return; }
     switch (sc.kind) {
       case "title": {
         const g = ctx.createLinearGradient(0, 0, W, H);
@@ -258,7 +319,7 @@ class Painter {
         const g = ctx.createLinearGradient(-W / 3, 0, W / 3, 0);
         g.addColorStop(0, brand.primary_color); g.addColorStop(1, brand.accent_color);
         ctx.fillStyle = g;
-        wrap(ctx, sc.heading, W - 200 * S).slice(0, 2).forEach((l, i, arr) => ctx.fillText(l, 0, (i - (arr.length - 1) / 2) * 110 * S));
+        wrap(ctx, countUp(sc.heading, (t - 0.2) / 1.6), W - 200 * S).slice(0, 2).forEach((l, i, arr) => ctx.fillText(l, 0, (i - (arr.length - 1) / 2) * 110 * S));
         ctx.restore();
         if (sc.items[0]) {
           ctx.globalAlpha = appear(t, 1.2); ctx.textAlign = "center";
@@ -275,7 +336,8 @@ class Painter {
           const sw = a.clip?.videoWidth ?? a.pic?.width ?? W, sh = a.clip?.videoHeight ?? a.pic?.height ?? H;
           const p = clamp(t / d);
           if (!a.clip) {
-            const r = photoCoverRect(sw, sh, W, H, sc.image_frame);
+            const f = normalizePhotoFrame(sc.image_frame);
+            const r = photoCoverRect(sw, sh, W, H, { ...f, zoom: kenBurnsZoom(f.zoom, t, d) });
             ctx.drawImage(visual, r.x, r.y, r.width, r.height);
           } else cover(ctx, visual, sw, sh, W, H, 1.04 + 0.1 * p, (p - 0.5) * -40 * S);
         } else {
@@ -345,6 +407,12 @@ export async function buildExplainerVideo(opts: {
   height: number;
   burnCaptions: boolean;
   onFallback?: () => void;
+  /** Whole-video look; scenes may override with scene.style. */
+  videoStyle?: ExplainerStyle;
+  /** Soft music bed under the narration. */
+  music?: boolean;
+  /** Section names shown in the scene tag (by scene kind). */
+  labels?: Partial<Record<ExplainerScene["kind"], string>>;
 }): Promise<ExplainerVideo> {
   const { brand, signal, onProgress, width: W, height: H } = opts;
   const scenes = withExplainerClosing(opts.scenes);
@@ -402,7 +470,7 @@ export async function buildExplainerVideo(opts: {
         });
       } catch { clip = null; }
     }
-    return { pic, clip, clipAudio };
+    return { pic, clip, clipAudio, footage: playsFootage(scenes[i]!, opts.videoStyle, !!clip) };
   }));
 
   // 3. Timeline
@@ -430,19 +498,69 @@ export async function buildExplainerVideo(opts: {
     const l = b.getChannelData(0), r = b.numberOfChannels > 1 ? b.getChannelData(1) : l;
     for (let i = 0; i < lim && off + i < len; i++) { L[off + i]! += l[i]! * gain; Rr[off + i]! += r[i]! * gain; }
   };
-  scenes.forEach((_, i) => { mix(voice[i] ?? null, starts[i]! + 0.2, 1, durs[i]!); mix(assets[i]!.clipAudio, starts[i]!, 0.25, durs[i]!); });
+  scenes.forEach((_, i) => { mix(voice[i] ?? null, starts[i]! + 0.2, 1, durs[i]!); mix(assets[i]!.clipAudio, starts[i]!, assets[i]!.footage ? 0.15 : 0.25, durs[i]!); });
+  if (opts.music) {
+    // Soft synthesized pad: slow chord changes, gentle fade in/out, ducked under the narration.
+    const speaking = new Uint8Array(Math.ceil(total * 10));
+    scenes.forEach((_, i) => { const v = voice[i]; if (!v) return; for (let k = Math.floor((starts[i]! + 0.2) * 10); k < Math.min(speaking.length, Math.ceil((starts[i]! + 0.2 + v.duration) * 10)); k++) speaking[k] = 1; });
+    const chords = [[220, 277.18, 329.63], [196, 246.94, 293.66], [174.61, 220, 261.63], [196, 246.94, 329.63]];
+    let g = musicGain(false);
+    for (let n = 0; n < len; n++) {
+      const time = n / SR;
+      const target = musicGain(!!speaking[Math.floor(time * 10)]);
+      g += (target - g) * 0.0003;
+      const ci = Math.floor(time / 4) % chords.length, nx = (ci + 1) % chords.length, ph = (time % 4) / 4;
+      const blend = ph > 0.85 ? (ph - 0.85) / 0.15 : 0;
+      let v = 0;
+      for (let k = 0; k < 3; k++) {
+        const f = chords[ci]![k]! * (1 - blend) + chords[nx]![k]! * blend;
+        v += Math.sin(2 * Math.PI * f * time) * 0.33 + Math.sin(2 * Math.PI * f * 2 * time) * 0.06;
+      }
+      const fade = Math.min(1, time / 2, (total - time) / 3);
+      const s = v * g * Math.max(0, fade) * (0.85 + 0.15 * Math.sin(time * 0.7));
+      L[n]! += s * (1 + 0.1 * Math.sin(time * 0.3)); Rr[n]! += s * (1 - 0.1 * Math.sin(time * 0.3));
+    }
+  }
 
   const canvas = document.createElement("canvas");
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext("2d")!;
   const painter = new Painter(ctx, W, H, brand, logo, opts.burnCaptions);
+  const buf = document.createElement("canvas");
+  buf.width = W; buf.height = H;
+  const bctx = buf.getContext("2d")!;
+  const bufPainter = new Painter(bctx, W, H, brand, logo, false);
+  const paintScene = (p: Painter, c: CanvasRenderingContext2D, i: number, lt: number) => {
+    const cam = cameraAt(lt, durs[i]!, i);
+    c.save();
+    c.translate(W / 2 + cam.dx * painter.S, H / 2 + cam.dy * painter.S);
+    c.scale(cam.scale, cam.scale);
+    c.translate(-W / 2, -H / 2);
+    p.scene(scenes[i]!, lt, durs[i]!, assets[i]!);
+    c.restore();
+    const sc = scenes[i]!;
+    const dark = assets[i]!.footage || sc.kind === "title" || sc.kind === "illustration" || sc.kind === "scenario";
+    p.chrome(starts[i]! + lt, total, i, scenes.length, sc.kind === "title" ? "" : opts.labels?.[sc.kind] ?? "", lt, dark);
+  };
   const drawAt = (gt: number) => {
     const i = sceneAt(gt), lt = gt - starts[i]!;
-    ctx.save();
-    painter.scene(scenes[i]!, lt, durs[i]!, assets[i]!);
-    ctx.restore();
+    const tr = transitionFor(i);
+    if (tr && lt < TRANSITION_SECONDS) {
+      // Previous scene's final moment underneath, the new scene composited in with a transition.
+      paintScene(painter, ctx, i - 1, durs[i - 1]!);
+      bctx.clearRect(0, 0, W, H);
+      paintScene(bufPainter, bctx, i, lt);
+      const k = easeInOut(lt / TRANSITION_SECONDS);
+      ctx.save();
+      if (tr === "fade") { ctx.globalAlpha = k; ctx.drawImage(buf, 0, 0); }
+      else if (tr === "slide") { ctx.drawImage(buf, (1 - k) * W, 0); }
+      else if (tr === "wipe") { ctx.beginPath(); ctx.rect(0, 0, W * k, H); ctx.clip(); ctx.drawImage(buf, 0, 0); ctx.fillStyle = brand.accent_color; ctx.fillRect(W * k - 8 * painter.S, 0, 8 * painter.S, H); }
+      else { const z = 1.15 - 0.15 * k; ctx.globalAlpha = k; ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.drawImage(buf, -W / 2, -H / 2); }
+      ctx.restore();
+    } else {
+      paintScene(painter, ctx, i, lt);
+    }
     painter.caption(cues, gt);
-    if (i > 0 && lt < 0.4) { ctx.globalAlpha = 1 - lt / 0.4; ctx.fillStyle = brand.background_color; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
   };
   const titles = scenes.map((s) => s.heading);
   const vtt = cuesToVtt(cues);

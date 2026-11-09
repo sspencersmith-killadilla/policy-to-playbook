@@ -2,14 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Clapperboard, Download, ImageIcon, Loader2, Plus, Sparkles, Trash2, Upload } from "lucide-react";
+import { ArrowDown, ArrowUp, Clapperboard, Film, Download, ImageIcon, Loader2, Plus, Sparkles, Trash2, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
 import {
-  EXPLAINER_KINDS, MAX_ILLUSTRATIONS_PER_VIDEO, newId, sceneUsesPicture,
+  EXPLAINER_KINDS, MAX_ILLUSTRATIONS_PER_VIDEO, MONTHLY_CLIP_LIMIT, newId, sceneUsesPicture, type ExplainerStyle,
    type CourseContent, type Explainer, type ExplainerKind, type ExplainerScene, type ExplainerTone,
 } from "@/lib/course";
-import { makeIllustration, narrateText, writeExplainerScript } from "@/lib/ai.functions";
+import { checkSceneClip, makeIllustration, narrateText, startSceneClip, suggestClipPrompts, writeExplainerScript } from "@/lib/ai.functions";
+import { footageNeeded, sceneStyle } from "@/lib/explainer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +21,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { PhotoFraming } from "@/components/PhotoFraming";
 import { ExplainerAudio } from "@/components/ExplainerAudio";
 
-const DEFAULTS: Explainer = { length: 4, tone: "friendly", illustrations: true, includeClips: true, scenes: [] };
+const DEFAULTS: Explainer = { length: 4, tone: "friendly", illustrations: true, includeClips: true, style: "animated", music: true, scenes: [] };
+const LABELS = Object.fromEntries(EXPLAINER_KINDS.map((k) => [k.value, k.label]));
 const safeName = (s: string) => s.replace(/[^\w-]+/g, "_").slice(0, 60) || "course";
 
 async function signed(path: string | null | undefined) {
@@ -36,6 +38,19 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
   const write = useServerFn(writeExplainerScript);
   const illustrate = useServerFn(makeIllustration);
   const narrate = useServerFn(narrateText);
+  const suggest = useServerFn(suggestClipPrompts);
+  const startClip = useServerFn(startSceneClip);
+  const checkClip = useServerFn(checkSceneClip);
+  const [filming, setFilming] = useState<string | null>(null);
+  const clipsUsed = useQuery({
+    queryKey: ["clips-used", current?.org_id], enabled: open && !!current,
+    queryFn: async () => {
+      const since = new Date(Date.now() - 30 * 864e5).toISOString();
+      const { count } = await supabase.from("audit_events").select("id", { count: "exact", head: true }).eq("org_id", current!.org_id).eq("action", "clip.generated").gte("created_at", since);
+      return count ?? 0;
+    },
+  });
+  const clipsLeft = Math.max(0, MONTHLY_CLIP_LIMIT - (clipsUsed.data ?? 0));
   const [ex, setEx] = useState<Explainer>(content.explainer ?? DEFAULTS);
   const [writing, setWriting] = useState(false);
   const [job, setJob] = useState<{ msg: string; pct: number } | null>(null);
@@ -95,6 +110,48 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
     } finally { setDrawing(null); }
   }
 
+  // Make AI footage clips for scenes set to "AI footage" that don't have one yet.
+  async function makeFootage(only?: ExplainerScene) {
+    const todo = only ? [only] : footageNeeded(ex.scenes, ex.style);
+    if (!todo.length) { toast.info("Every footage scene already has a clip."); return; }
+    if (todo.length > clipsLeft) { toast.error(`${todo.length} clip${todo.length > 1 ? "s" : ""} needed, but your organization has ${clipsLeft} of ${MONTHLY_CLIP_LIMIT} left this month. Switch some scenes to Animated.`); return; }
+    if (!confirm(`Make ${todo.length} AI footage clip${todo.length > 1 ? "s" : ""}? Each uses one of your ${clipsLeft} remaining clips this month and takes 1–3 minutes.`)) return;
+    try {
+      setFilming(only ? only.id : "all");
+      const needPrompt = todo.filter((s) => !s.clip_prompt?.trim());
+      const prompts = new Map(todo.map((s) => [s.id, s.clip_prompt ?? ""]));
+      if (needPrompt.length) {
+        const r = await suggest({ data: { courseId, slides: needPrompt.map((s) => ({ id: s.id, layout: "content" as any, title: s.heading, body: [s.quote, ...s.items, ...s.items2].filter(Boolean).join("; "), bullets: s.items, notes: s.narration })) } });
+        r.forEach((x) => prompts.set(x.id, x.prompt));
+      }
+      // Start all clips, then poll them together.
+      const jobs: { id: string; jobId: string; prompt: string }[] = [];
+      for (const s of todo) {
+        const prompt = prompts.get(s.id)?.trim();
+        if (!prompt) continue;
+        try { jobs.push({ id: s.id, prompt, jobId: (await startClip({ data: { courseId, prompt } })).jobId }); }
+        catch (e: any) { toast.error(`Scene "${s.heading}": ${e.message ?? "couldn't start clip"}`); }
+      }
+      let pending = jobs;
+      for (let round = 0; round < 60 && pending.length; round++) {
+        await new Promise((r) => setTimeout(r, 7000));
+        const next: typeof jobs = [];
+        for (const j of pending) {
+          try {
+            const r = await checkClip({ data: { courseId, jobId: j.jobId } });
+            if (r.status === "completed") setScene(j.id, { clip_path: r.path, clip_prompt: j.prompt });
+            else if (r.status === "failed") toast.error(r.error ?? "Clip failed");
+            else next.push(j);
+          } catch { next.push(j); }
+        }
+        pending = next;
+      }
+      if (pending.length) toast.error(`${pending.length} clip${pending.length > 1 ? "s are" : " is"} still rendering. Try "Make footage" again in a few minutes.`);
+      else toast.success("Footage ready.");
+    } catch (e: any) { toast.error(e.message ?? "Footage failed"); }
+    finally { setFilming(null); clipsUsed.refetch(); }
+  }
+
   async function build(kind: "mp4" | "scorm") {
     if (!approved) { toast.error("Approve the course before exporting."); return; }
     if (!current) { toast.error("Choose your organization first."); return; }
@@ -128,13 +185,17 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
         if (!url) throw new Error(`Couldn't load audio for scene "${s.heading}".`);
         return url;
       }));
-      const clips = await Promise.all(scenes.map((s) => ex.includeClips && s.clip_slide_id ? signed(content.slides.find((x) => x.id === s.clip_slide_id)?.clip_path) : Promise.resolve(null)));
+      const clips = await Promise.all(scenes.map((s) =>
+        sceneStyle(s, ex.style) === "footage" && s.clip_path ? signed(s.clip_path)
+          : ex.includeClips && s.clip_slide_id ? signed(content.slides.find((x) => x.id === s.clip_slide_id)?.clip_path) : Promise.resolve(null)));
+      const noClip = footageNeeded(scenes, ex.style).length;
+      if (noClip) toast.info(`${noClip} footage scene${noClip > 1 ? "s have" : " has"} no clip yet and will be animated instead.`);
       const { buildExplainerVideo } = await import("@/lib/explainer-render");
       const W = hd ? 1920 : 1280;
       const t0 = Date.now();
       const rec = await buildExplainerVideo({
         scenes, brand, pictures, recordings, clips, signal, width: W, height: W === 1920 ? 1080 : 720,
-        burnCaptions: kind === "mp4",
+        burnCaptions: kind === "mp4", videoStyle: ex.style ?? "animated", music: ex.music ?? true, labels: LABELS,
         narrate: async (text, sc) => (await narrate({ data: { orgId: current.org_id, text, voice: sc.voice || brand.voice } })).wavBase64,
         onProgress: (msg, p) => {
           const pct = 30 + p * 0.68;
@@ -188,6 +249,18 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
               <input type="checkbox" className="mt-1" disabled={!editable || !clipSlides.length} checked={ex.includeClips && !!clipSlides.length} onChange={(e) => change((x) => ({ ...x, includeClips: e.target.checked }))} />
               <span><strong>Use my AI video clips</strong><span className="block text-muted-foreground">{clipSlides.length ? `${clipSlides.length} clip${clipSlides.length > 1 ? "s" : ""} can play behind matching scenario scenes.` : "No slides have video clips yet."}</span></span>
             </label>
+            <div className="space-y-1.5">
+              <Label>Video style</Label>
+              <Select value={ex.style ?? "animated"} disabled={!editable} onValueChange={(v) => change((e) => ({ ...e, style: v as ExplainerStyle }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="animated">Animated (motion graphics)</SelectItem><SelectItem value="footage">AI video footage</SelectItem></SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">{(ex.style ?? "animated") === "animated" ? "Moving text, diagrams and pictures with camera motion and transitions. No extra AI cost." : `Each scene gets a short AI clip with its words animated on top. Uses your clip allowance (${clipsLeft} of ${MONTHLY_CLIP_LIMIT} left this month).`} You can change the style for any scene.</p>
+            </div>
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" className="mt-1" disabled={!editable} checked={ex.music ?? true} onChange={(e) => change((x) => ({ ...x, music: e.target.checked }))} />
+              <span><strong>Background music</strong><span className="block text-muted-foreground">A soft music bed that gets quieter while the narrator speaks.</span></span>
+            </label>
             <p className="text-xs text-muted-foreground sm:col-span-2">Default voice: <strong>{brand.voice}</strong> (change it in Brand kit). You can pick a different voice for any scene below.</p>
             {editable && (
               <Button className="sm:col-span-2" onClick={writeScript} disabled={writing}>
@@ -202,10 +275,18 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
                 <h3 className="font-display text-lg font-semibold">Script: {ex.scenes.length} scenes, about {estMin} min</h3>
                 <span className="text-xs text-muted-foreground">Changes save automatically and don't affect approval.</span>
               </div>
+              {editable && footageNeeded(ex.scenes, ex.style).length > 0 && (
+                <div className="flex flex-wrap items-center gap-3 rounded-md border bg-muted/50 p-3 text-sm">
+                  <Film className="size-4" />
+                  <span className="flex-1">{footageNeeded(ex.scenes, ex.style).length} footage scene(s) need a clip. You have {clipsLeft} of {MONTHLY_CLIP_LIMIT} clips left this month. Scenes without a clip are animated instead.</span>
+                  <Button size="sm" disabled={!!filming} onClick={() => makeFootage()}>{filming === "all" ? <><Loader2 className="animate-spin" /> Making footage… (1–3 min)</> : <><Film /> Make footage</>}</Button>
+                </div>
+              )}
               {ex.scenes.map((s, i) => (
                 <SceneCard key={s.id} s={s} i={i} n={ex.scenes.length} editable={editable} illustrations={ex.illustrations}
                   clipSlides={ex.includeClips ? clipSlides.map((c) => ({ id: c.id, title: c.title })) : []}
-                  drawing={drawing === s.id} brandVoice={brand.voice}
+                  drawing={drawing === s.id} brandVoice={brand.voice} videoStyle={ex.style ?? "animated"}
+                  filming={filming === s.id || filming === "all"} onFilm={() => makeFootage(s)}
                   onUpload={async (f) => { try { if (!current) throw new Error("Choose your organization first."); if (!f.type.startsWith("image/")) throw new Error("Choose a photo or image file."); if (f.size > 10e6) throw new Error("Photos can be up to 10 MB."); const ext = (f.name.split(".").pop() || "jpg").replace(/[^a-z0-9]/gi, "").slice(0, 5); const path = `${current.org_id}/explainer-photos/${s.id}-${newId()}.${ext}`; const up = await supabase.storage.from("documents").upload(path, f, { contentType: f.type }); if (up.error) throw new Error(up.error.message); setScene(s.id, { image_path: path, image_frame: null }); toast.success("Photo added"); } catch (e: any) { toast.error(e.message ?? "Upload failed"); } }}
                   onUploadAudio={async (f) => {
                     try {
@@ -266,11 +347,14 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
   );
 }
 
-function SceneCard({ s, i, n, editable, illustrations, clipSlides, drawing, brandVoice, onChange, onMove, onDelete, onDraw, onUpload, onUploadAudio }: {
+function SceneCard({ s, i, n, editable, illustrations, clipSlides, drawing, brandVoice, videoStyle, filming, onFilm, onChange, onMove, onDelete, onDraw, onUpload, onUploadAudio }: {
   s: ExplainerScene; i: number; n: number; editable: boolean; illustrations: boolean; clipSlides: { id: string; title: string }[]; drawing: boolean; brandVoice: string;
+  videoStyle: ExplainerStyle; filming: boolean; onFilm: () => void;
   onChange: (p: Partial<ExplainerScene>) => void; onMove: (d: number) => void; onDelete: () => void; onDraw: () => void; onUpload: (f: File) => Promise<void>;
   onUploadAudio: (f: File) => Promise<void>;
 }) {
+  const footage = sceneStyle(s, videoStyle) === "footage";
+  const clip = useQuery({ queryKey: ["signed", s.clip_path], enabled: footage && !!s.clip_path, queryFn: () => signed(s.clip_path), staleTime: 30 * 60e3 });
   const pic = useQuery({ queryKey: ["signed", s.image_path], enabled: !!s.image_path, queryFn: () => signed(s.image_path), staleTime: 30 * 60e3 });
   const audio = useQuery({ queryKey: ["signed", s.voice_path], enabled: !!s.voice_path, queryFn: () => signed(s.voice_path), staleTime: 30 * 60e3 });
   const lines = (v: string) => v.split("\n").map((x) => x.trim()).filter(Boolean);
@@ -282,6 +366,10 @@ function SceneCard({ s, i, n, editable, illustrations, clipSlides, drawing, bran
         <Select value={s.kind} disabled={!editable} onValueChange={(v) => onChange({ kind: v as ExplainerKind })}>
           <SelectTrigger className="h-8 w-44"><SelectValue /></SelectTrigger>
           <SelectContent>{EXPLAINER_KINDS.map((k) => <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>)}</SelectContent>
+        </Select>
+        <Select value={s.style ?? "default"} disabled={!editable} onValueChange={(v) => onChange({ style: v === "default" ? null : v as ExplainerStyle })}>
+          <SelectTrigger className="h-8 w-40" aria-label="Scene style"><SelectValue /></SelectTrigger>
+          <SelectContent><SelectItem value="default">Video style ({videoStyle === "footage" ? "footage" : "animated"})</SelectItem><SelectItem value="animated">Animated</SelectItem><SelectItem value="footage">AI footage</SelectItem></SelectContent>
         </Select>
         <Input value={s.heading} disabled={!editable} onChange={(e) => onChange({ heading: e.target.value })} className="h-8 min-w-0 flex-1 font-medium" aria-label="On-screen heading" />
         {editable && (
@@ -318,7 +406,23 @@ function SceneCard({ s, i, n, editable, illustrations, clipSlides, drawing, bran
           )}
         </div>
       </div>
-      {sceneUsesPicture(s) && (
+      {footage && (
+        <div className="mt-3 flex flex-wrap items-start gap-3 rounded-md bg-muted/50 p-3">
+          {clip.data ? <video src={clip.data} muted loop autoPlay playsInline className="h-20 w-36 rounded object-cover" /> : <div className="flex h-20 w-36 items-center justify-center rounded bg-muted text-muted-foreground"><Film /></div>}
+          <div className="min-w-0 flex-1 space-y-2">
+            <Label className="text-xs">Footage description (leave empty to write it from the narration)</Label>
+            <Textarea rows={2} value={s.clip_prompt ?? ""} disabled={!editable} onChange={(e) => onChange({ clip_prompt: e.target.value })} placeholder="e.g. A supervisor walks a new employee through a safety checklist on a warehouse floor, slow push-in" />
+            {editable && (
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" disabled={filming} onClick={onFilm}>{filming ? <><Loader2 className="animate-spin" /> Making clip… (1–3 min)</> : <><Film /> {s.clip_path ? "Remake clip" : "Make clip"}</>}</Button>
+                {s.clip_path && <Button size="sm" variant="ghost" onClick={() => onChange({ clip_path: null })}>Remove clip</Button>}
+              </div>
+            )}
+            {!s.clip_path && <p className="text-xs text-muted-foreground">No clip yet, so this scene is animated in the video.</p>}
+          </div>
+        </div>
+      )}
+      {sceneUsesPicture(s) && !(footage && s.clip_path) && (
         <div className="mt-3 flex flex-wrap items-start gap-3 rounded-md bg-muted/50 p-3">
           {pic.data ? <img src={pic.data} alt="" className="h-20 w-30 rounded object-cover" /> : <div className="flex h-20 w-30 items-center justify-center rounded bg-muted text-muted-foreground"><ImageIcon /></div>}
           <div className="min-w-0 flex-1 space-y-2">

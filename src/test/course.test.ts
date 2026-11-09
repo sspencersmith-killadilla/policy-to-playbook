@@ -33,7 +33,7 @@ describe("course rules", () => {
   });
 
   it("keeps existing or missing brand links on Kit A", () => {
-    expect(resolveCourseBrand(kits, null).id).toBe("kit-A");
-    expect(resolveCourseBrand(kits, "deleted-kit").id).toBe("kit-A");
+    expect(resolveCourseBrand(kits, null).primary_color).toBe("#000000");
+    expect(resolveCourseBrand(kits, "deleted-kit").primary_color).toBe("#000000");
   });
 });

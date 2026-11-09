@@ -116,6 +116,7 @@ function Guide() {
           <li>Wait 1–3 minutes, keeping the tab open. The button shows progress.</li>
           <li>When done, the clip appears in a player in the box. Watch it. Use <b>Replace clip</b> to try again or <b>Remove</b> to drop it.</li>
           <li>Approve the course, then choose <b>Export → Narrated video</b>. The clip plays before that slide.</li>
+          <li>In explainer videos, a clip shorter than its voiceover plays once (never loops), then fades into a slide showing the same scene's key words for the rest of the narration.</li>
         </ol>
         <Tip>To do every scenario slide at once, click <b>Write prompts for all scenario slides</b> under the slide list. It fills in a prompt on each scenario slide that doesn't have one; then visit each slide, review, and click Generate clip.</Tip>
         <p><b>Writing a good scene description yourself:</b></p>

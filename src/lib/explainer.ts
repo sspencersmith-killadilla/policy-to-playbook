@@ -116,6 +116,22 @@ export function transitionFor(i: number): Transition | null {
 }
 export const TRANSITION_SECONDS = 0.6;
 
+/** Seconds of crossfade when a short clip hands off to its scene's animated slide. */
+export const HANDOFF_FADE = 0.5;
+
+/** How a clip shorter than its scene finishes: no loop — it holds its last frame for tiny gaps, otherwise hands off to a slide. */
+export function clipHandoff(sceneDur: number, clipDur: number | null | undefined): { clipEnd: number; handoffStart: number; mode: "none" | "hold" | "slide" } {
+  const c = clipDur && clipDur > 0 ? clipDur : 0;
+  if (!c || c >= sceneDur) return { clipEnd: sceneDur, handoffStart: sceneDur, mode: "none" };
+  if (sceneDur - c < 1) return { clipEnd: c, handoffStart: sceneDur, mode: "hold" };
+  return { clipEnd: c, handoffStart: Math.max(0, c - HANDOFF_FADE), mode: "slide" };
+}
+
+/** Clip playback position at scene-local time t: plays once, then rests on the final frame. */
+export function clipTimeAt(t: number, clipDur: number): number {
+  return Math.max(0, Math.min(t, clipDur - 0.01));
+}
+
 export const easeInOut = (x: number) => { const c = Math.max(0, Math.min(1, x)); return c < 0.5 ? 4 * c * c * c : 1 - Math.pow(-2 * c + 2, 3) / 2; };
 
 /** Slow camera drift across a scene: starts 2% in (so edges never show), pushes in 4% more, alternating drift direction. */

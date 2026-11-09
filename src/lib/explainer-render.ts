@@ -530,14 +530,44 @@ export async function buildExplainerVideo(opts: {
   buf.width = W; buf.height = H;
   const bctx = buf.getContext("2d")!;
   const bufPainter = new Painter(bctx, W, H, brand, logo, false);
-  const paintScene = (p: Painter, c: CanvasRenderingContext2D, i: number, lt: number) => {
+  const hand = document.createElement("canvas");
+  hand.width = W; hand.height = H;
+  const hctx = hand.getContext("2d")!;
+  const handPainter = new Painter(hctx, W, H, brand, logo, false);
+  const handoffs = assets.map((a, i) => clipHandoff(durs[i]!, a.clip?.duration));
+  const slideScene = (sc: ExplainerScene): ExplainerScene => {
+    const hasWords = sc.heading.trim() || sc.items.length || sc.items2.length || (sc.quote ?? "").trim();
+    if (hasWords) return sc;
+    const line = sc.narration.split(/(?<=[.!?])\s+/)[0]?.slice(0, 90) ?? "";
+    return { ...sc, heading: line };
+  };
+  const paintRaw = (p: Painter, c: CanvasRenderingContext2D, i: number, lt: number) => {
     const cam = cameraAt(lt, durs[i]!, i);
     c.save();
     c.translate(W / 2 + cam.dx * painter.S, H / 2 + cam.dy * painter.S);
     c.scale(cam.scale, cam.scale);
     c.translate(-W / 2, -H / 2);
-    p.scene(scenes[i]!, lt, durs[i]!, assets[i]!);
+    const h = handoffs[i]!;
+    if (h.mode === "slide" && lt >= h.handoffStart) {
+      const a = { ...assets[i]!, clip: null, footage: false };
+      p.scene(slideScene(scenes[i]!), lt - h.handoffStart, durs[i]! - h.handoffStart, a);
+    } else {
+      p.scene(scenes[i]!, lt, durs[i]!, assets[i]!);
+    }
     c.restore();
+  };
+  const paintScene = (p: Painter, c: CanvasRenderingContext2D, i: number, lt: number) => {
+    const h = handoffs[i]!;
+    const fading = h.mode === "slide" && lt >= h.handoffStart && lt < h.handoffStart + HANDOFF_FADE;
+    if (fading) {
+      // Clip's last moment underneath, the reinforcing slide fading in on top.
+      paintRaw(p, c, i, h.handoffStart - 0.001);
+      hctx.clearRect(0, 0, W, H);
+      paintRaw(handPainter, hctx, i, lt);
+      c.save(); c.globalAlpha = easeInOut((lt - h.handoffStart) / HANDOFF_FADE); c.drawImage(hand, 0, 0); c.restore();
+    } else {
+      paintRaw(p, c, i, lt);
+    }
     const sc = scenes[i]!;
     const dark = assets[i]!.footage || sc.kind === "title" || sc.kind === "illustration" || sc.kind === "scenario";
     p.chrome(starts[i]! + lt, total, i, scenes.length, sc.kind === "title" ? "" : opts.labels?.[sc.kind] ?? "", lt, dark);
@@ -590,7 +620,7 @@ export async function buildExplainerVideo(opts: {
       if (encErr) throw encErr;
       const gt = f / FPS, i = sceneAt(gt), clip = assets[i]!.clip;
       if (clip && clip.duration) {
-        clip.currentTime = Math.min(((gt - starts[i]!) % clip.duration), clip.duration - 0.01);
+        clip.currentTime = clipTimeAt(gt - starts[i]!, clip.duration);
         await new Promise<void>((r) => (clip.onseeked = () => r()));
       }
       drawAt(gt);
@@ -637,8 +667,7 @@ async function recordRealtime(
   const chunks: Blob[] = [];
   rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
   const stopped = new Promise<void>((r) => (rec.onstop = () => r()));
-  assets.forEach((a) => { if (a.clip) { a.clip.loop = true; a.clip.play().catch(() => {}); } });
-  void starts;
+  assets.forEach((a) => { if (a.clip) { a.clip.loop = false; a.clip.pause(); } });
   drawAt(0);
   rec.start(1000);
   const src = audioCtx.createBufferSource();
@@ -650,6 +679,11 @@ async function recordRealtime(
         const gt = (performance.now() - t0) / 1000;
         try { check(); } catch (e) { clearInterval(timer); reject(e); return; }
         if (gt >= total) { clearInterval(timer); resolve(); return; }
+        const i = starts.findLastIndex((s) => s <= gt), clip = assets[Math.max(0, i)]?.clip;
+        if (clip && clip.paused && !clip.ended && gt - starts[i]! < clip.duration - 0.05) {
+          assets.forEach((a) => a.clip && a.clip !== clip && a.clip.pause());
+          clip.currentTime = clipTimeAt(gt - starts[i]!, clip.duration); clip.play().catch(() => {});
+        }
         drawAt(gt);
         onProgress("Recording explainer (plays in real time)…", 38 + (gt / total) * 60);
       }, 1000 / 30);

@@ -258,10 +258,23 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
               </Select>
               <p className="text-xs text-muted-foreground">{(ex.style ?? "animated") === "animated" ? "Moving text, diagrams and pictures with camera motion and transitions. No extra AI cost." : `Each scene gets a short AI clip with its words animated on top. Uses your clip allowance (${clipsLeft} of ${MONTHLY_CLIP_LIMIT} left this month).`} You can change the style for any scene.</p>
             </div>
-            <label className="flex items-start gap-2 text-sm">
-              <input type="checkbox" className="mt-1" disabled={!editable} checked={ex.music ?? true} onChange={(e) => change((x) => ({ ...x, music: e.target.checked }))} />
-              <span><strong>Background music</strong><span className="block text-muted-foreground">A soft music bed that gets quieter while the narrator speaks.</span></span>
-            </label>
+            <div className="space-y-3 text-sm sm:col-span-2">
+              <label className="flex items-start gap-2">
+                <input type="checkbox" className="mt-1" disabled={!editable} checked={ex.music ?? true} onChange={(e) => change((x) => ({ ...x, music: e.target.checked }))} />
+                <span><strong>Background music</strong><span className="block text-muted-foreground">A real royalty-free instrumental that gets quieter while the narrator speaks.</span></span>
+              </label>
+              {(ex.music ?? true) && (
+                <div className="ml-6 grid max-w-xl gap-2">
+                  <Label>Music track for this explainer</Label>
+                  <Select value={getExplainerMusicTrack(ex.musicTrack).id} disabled={!editable} onValueChange={(v) => change((e) => ({ ...e, musicTrack: v as ExplainerMusicTrack }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{EXPLAINER_MUSIC_TRACKS.map((track) => <SelectItem key={track.id} value={track.id}>{track.name} — {track.description}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <audio key={getExplainerMusicTrack(ex.musicTrack).id} className="h-10 w-full" controls preload="none" src={getExplainerMusicTrack(ex.musicTrack).url}>Your browser cannot preview this track.</audio>
+                  <p className="text-xs text-muted-foreground">CC0 music by Ondrosik. Commercial use is allowed; no attribution is required. Longer videos repeat the track with a smooth crossfade.</p>
+                </div>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground sm:col-span-2">Default voice: <strong>{brand.voice}</strong> (from this course's brand kit). You can pick a different voice for any scene below.</p>
             {editable && (
               <Button className="sm:col-span-2" onClick={writeScript} disabled={writing}>

@@ -1,8 +1,8 @@
 // Browser-only renderer for the explainer video: animated canvas scenes + narration, encoded to MP4.
-import type { Brand, ExplainerScene } from "./course";
+import type { Brand, ExplainerMusicTrack, ExplainerScene, ExplainerStyle } from "./course";
 import type { Chapter, RecordedVideo } from "./exports";
-import { cameraAt, captionCues, countUp, cuesToVtt, EXPLAINER_CLOSING_ID, kenBurnsZoom, musicGain, normalizePhotoFrame, photoCoverRect, playsFootage, revealTimes, sceneDuration, sceneNarration, transitionFor, clipHandoff, clipTimeAt, HANDOFF_FADE, TRANSITION_SECONDS, withExplainerClosing, easeInOut, type Cue } from "./explainer";
-import type { ExplainerStyle } from "./course";
+import { cameraAt, captionCues, countUp, cuesToVtt, EXPLAINER_CLOSING_ID, kenBurnsZoom, musicGain, musicLoopSample, normalizePhotoFrame, photoCoverRect, playsFootage, revealTimes, sceneDuration, sceneNarration, transitionFor, clipHandoff, clipTimeAt, HANDOFF_FADE, TRANSITION_SECONDS, withExplainerClosing, easeInOut, type Cue } from "./explainer";
+import { getExplainerMusicTrack } from "./explainer-music";
 
 export type ExplainerVideo = RecordedVideo & { vtt: string; titles: string[] };
 
@@ -409,8 +409,9 @@ export async function buildExplainerVideo(opts: {
   onFallback?: () => void;
   /** Whole-video look; scenes may override with scene.style. */
   videoStyle?: ExplainerStyle;
-  /** Soft music bed under the narration. */
+  /** Royalty-free music bed under the narration. */
   music?: boolean;
+  musicTrack?: ExplainerMusicTrack;
   /** Section names shown in the scene tag (by scene kind). */
   labels?: Partial<Record<ExplainerScene["kind"], string>>;
 }): Promise<ExplainerVideo> {
@@ -500,25 +501,33 @@ export async function buildExplainerVideo(opts: {
   };
   scenes.forEach((_, i) => { mix(voice[i] ?? null, starts[i]! + 0.2, 1, durs[i]!); mix(assets[i]!.clipAudio, starts[i]!, assets[i]!.footage ? 0.15 : 0.25, durs[i]!); });
   if (opts.music) {
-    // Soft synthesized pad: slow chord changes, gentle fade in/out, ducked under the narration.
+    // A real CC0 instrumental, smoothly repeated and ducked beneath the narration.
+    onProgress("Mixing background music…", 38);
+    const track = getExplainerMusicTrack(opts.musicTrack);
+    let music: AudioBuffer;
+    try {
+      const response = await fetch(track.url, { signal });
+      if (!response.ok) throw new Error("download failed");
+      music = await decodeCtx.decodeAudioData(await response.arrayBuffer());
+    } catch (e: any) {
+      check();
+      throw new Error(`Couldn't load the ${track.name.toLowerCase()} music track. Try again or turn off background music.`);
+    }
+    check();
     const speaking = new Uint8Array(Math.ceil(total * 10));
     scenes.forEach((_, i) => { const v = voice[i]; if (!v) return; for (let k = Math.floor((starts[i]! + 0.2) * 10); k < Math.min(speaking.length, Math.ceil((starts[i]! + 0.2 + v.duration) * 10)); k++) speaking[k] = 1; });
-    const chords = [[220, 277.18, 329.63], [196, 246.94, 293.66], [174.61, 220, 261.63], [196, 246.94, 329.63]];
+    const musicL = music.getChannelData(0);
+    const musicR = music.numberOfChannels > 1 ? music.getChannelData(1) : musicL;
+    const fadeSamples = Math.min(SR * 2, Math.floor(music.length / 4));
     let g = musicGain(false);
     for (let n = 0; n < len; n++) {
       const time = n / SR;
       const target = musicGain(!!speaking[Math.floor(time * 10)]);
       g += (target - g) * 0.0003;
-      const ci = Math.floor(time / 4) % chords.length, nx = (ci + 1) % chords.length, ph = (time % 4) / 4;
-      const blend = ph > 0.85 ? (ph - 0.85) / 0.15 : 0;
-      let v = 0;
-      for (let k = 0; k < 3; k++) {
-        const f = chords[ci]![k]! * (1 - blend) + chords[nx]![k]! * blend;
-        v += Math.sin(2 * Math.PI * f * time) * 0.33 + Math.sin(2 * Math.PI * f * 2 * time) * 0.06;
-      }
-      const fade = Math.min(1, time / 2, (total - time) / 3);
-      const s = v * g * Math.max(0, fade) * (0.85 + 0.15 * Math.sin(time * 0.7));
-      L[n]! += s * (1 + 0.1 * Math.sin(time * 0.3)); Rr[n]! += s * (1 - 0.1 * Math.sin(time * 0.3));
+      const fade = Math.max(0, Math.min(1, time / 2, (total - time) / 3));
+      const gain = g * fade;
+      L[n]! += musicLoopSample(musicL, n, fadeSamples) * gain;
+      Rr[n]! += musicLoopSample(musicR, n, fadeSamples) * gain;
     }
   }
 

@@ -25,7 +25,7 @@ export const Route = createFileRoute("/_app/dashboard")({
 });
 
 function Dashboard() {
-  const { current, brand } = useOrg();
+  const { current, brandKits } = useOrg();
   const { newOrg } = Route.useSearch();
   const q = useQuery({
     queryKey: ["courses", current?.org_id],

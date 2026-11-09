@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { ArrowDown, ArrowUp, Copy, Trash2, Plus, Sparkles, Play, Download, CheckCircle2, Volume2, Loader2, History, Clapperboard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
-import { canEdit, emptySlide, VOICE_CHOICES, voiceLabel, LAYOUTS, newId, normalizeContent, type CourseContent, type Slide, type QuizQuestion } from "@/lib/course";
+import { canEdit, DEFAULT_BRAND, emptySlide, resolveCourseBrand, VOICE_CHOICES, voiceLabel, LAYOUTS, newId, normalizeContent, type Brand, type CourseContent, type Slide, type QuizQuestion } from "@/lib/course";
 import { useOrgVoices } from "@/lib/useOrgVoices";
 import { customVoiceValue } from "@/lib/voices";
 import { regenerateSlide, narrateText, startSceneClip, checkSceneClip, suggestClipPrompts } from "@/lib/ai.functions";

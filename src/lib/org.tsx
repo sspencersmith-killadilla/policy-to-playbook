@@ -53,8 +53,9 @@ export function OrgProvider({ userId, children }: { userId: string; children: Re
     () => ({
       orgs,
       current,
-      brand: brandQ.data ?? DEFAULT_BRAND,
-      loading: orgsQ.isLoading,
+      brand: resolveCourseBrand(brandKits),
+      brandKits,
+      loading: orgsQ.isLoading || (!!current && brandQ.isLoading),
       setCurrent: (id) => {
         localStorage.setItem(KEY, id);
         setCurrentId(id);

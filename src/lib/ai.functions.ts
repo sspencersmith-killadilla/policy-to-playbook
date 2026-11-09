@@ -174,10 +174,10 @@ export const regenerateSlide = createServerFn({ method: "POST" })
 
 export const narrateText = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { orgId: string; text: string; voice: string }) => {
+  .inputValidator((d: { orgId: string; text: string; voice: string; brandKitId?: string | null }) => {
     const text = (d.text ?? "").trim().slice(0, 1500);
     if (!text) throw new Error("Nothing to narrate.");
-    return { orgId: d.orgId, text, voice: /^[A-Za-z]+$/.test(d.voice) || /^custom:[0-9a-f-]{36}$/.test(d.voice) ? d.voice : "Kore" };
+    return { orgId: d.orgId, text, brandKitId: d.brandKitId ?? null, voice: /^[A-Za-z]+$/.test(d.voice) || /^custom:[0-9a-f-]{36}$/.test(d.voice) ? d.voice : "Kore" };
   })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as any;

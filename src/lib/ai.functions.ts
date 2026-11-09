@@ -123,10 +123,12 @@ export const generateCourse = createServerFn({ method: "POST" })
       })),
     };
 
+    const { data: defaultBrand } = await supabase.from("brand_kits").select("id").eq("org_id", doc.org_id).eq("slot", "A").maybeSingle();
     const { data: course, error: cErr } = await supabase
       .from("courses")
       .insert({
         org_id: doc.org_id,
+        brand_kit_id: defaultBrand?.id ?? null,
         document_id: doc.id,
         title: result.title,
         description: result.description,

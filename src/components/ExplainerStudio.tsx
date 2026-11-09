@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
 import {
   EXPLAINER_KINDS, MAX_ILLUSTRATIONS_PER_VIDEO, MONTHLY_CLIP_LIMIT, newId, sceneUsesPicture, type ExplainerStyle,
-   type CourseContent, type Explainer, type ExplainerKind, type ExplainerScene, type ExplainerTone,
+   type Brand, type CourseContent, type Explainer, type ExplainerKind, type ExplainerScene, type ExplainerTone,
 } from "@/lib/course";
 import { checkSceneClip, makeIllustration, narrateText, startSceneClip, suggestClipPrompts, writeExplainerScript } from "@/lib/ai.functions";
 import { footageNeeded, sceneStyle } from "@/lib/explainer";

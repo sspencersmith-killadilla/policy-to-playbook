@@ -62,8 +62,9 @@ function Guide() {
           <li><b>Viewer</b> – view and present courses only.</li>
         </ul>
 
-        <H id="brand">2. Set up your brand kit</H>
-        <p>Open <Link to="/brand" className="text-primary underline">Brand kit</Link> in the sidebar. Do this once; it applies to every course.</p>
+        <H id="brand">2. Set up your brand kits</H>
+        <p>Open <Link to="/brand" className="text-primary underline">Brand kit</Link> in the sidebar. Your organization has four kits: A, B, C and D. Give each a name, logo, colors, fonts and narrator voice. Kits B–D start as copies of Kit A.</p>
+        <p>On a course, use <b>Course brand</b> at the top to choose its kit. Changing that choice affects only this course; it does not rebrand your other courses. Editing a kit later updates every course that uses that kit.</p>
         <ul>
           <li><b>Logo</b> – a PNG or JPG under 400 KB. It appears on every slide.</li>
           <li><b>Colors</b> – primary, accent and background colors for slides.</li>

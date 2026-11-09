@@ -42,10 +42,12 @@ export function OrgProvider({ userId, children }: { userId: string; children: Re
     queryKey: ["brand", current?.org_id],
     enabled: !!current,
     queryFn: async () => {
-      const { data } = await supabase.from("brand_kits").select("*").eq("org_id", current!.org_id).maybeSingle();
-      return { ...DEFAULT_BRAND, ...(data ?? {}) } as Brand;
+      const { data, error } = await supabase.from("brand_kits").select("*").eq("org_id", current!.org_id).order("slot");
+      if (error) throw error;
+      return (data ?? []).map((kit) => ({ ...DEFAULT_BRAND, ...kit, slot: kit.slot as BrandSlot })) as BrandKit[];
     },
   });
+  const brandKits = brandQ.data ?? [];
 
   const value = useMemo<Ctx>(
     () => ({

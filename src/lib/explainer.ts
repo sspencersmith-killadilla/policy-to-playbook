@@ -159,7 +159,23 @@ export function countUp(text: string, p: number): string {
   return text.slice(0, m.index) + out + text.slice((m.index ?? 0) + raw.length);
 }
 
-/** Music bed gain: quiet under the voice, a little louder in pauses. */
+/** Real instrumental gain: about 20 dB below full scale under speech, lifting gently in pauses. */
 export function musicGain(voiceActive: boolean) {
-  return voiceActive ? 0.045 : 0.11;
+  return voiceActive ? 0.1 : 0.24;
+}
+
+/** Repeat a decoded track with a short crossfade instead of an audible hard restart. */
+export function musicLoopSample(channel: Float32Array, index: number, fadeSamples: number): number {
+  const length = channel.length;
+  if (!length) return 0;
+  const fade = Math.max(0, Math.min(fadeSamples, Math.floor(length / 2)));
+  if (!fade) return channel[index % length] ?? 0;
+  const period = length - fade;
+  const cycle = Math.floor(index / period);
+  const position = index - cycle * period;
+  const current = channel[position] ?? 0;
+  if (cycle === 0 || position >= fade) return current;
+  const previous = channel[position + period] ?? 0;
+  const blend = position / fade;
+  return previous * (1 - blend) + current * blend;
 }

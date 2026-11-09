@@ -7,8 +7,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
 import {
   EXPLAINER_KINDS, MAX_ILLUSTRATIONS_PER_VIDEO, MONTHLY_CLIP_LIMIT, newId, sceneUsesPicture, type ExplainerStyle,
-   type Brand, type CourseContent, type Explainer, type ExplainerKind, type ExplainerScene, type ExplainerTone,
+    type Brand, type CourseContent, type Explainer, type ExplainerKind, type ExplainerScene, type ExplainerTone, type ExplainerMusicTrack,
 } from "@/lib/course";
+import { EXPLAINER_MUSIC_TRACKS, getExplainerMusicTrack } from "@/lib/explainer-music";
 import { checkSceneClip, makeIllustration, narrateText, startSceneClip, suggestClipPrompts, writeExplainerScript } from "@/lib/ai.functions";
 import { footageNeeded, sceneStyle } from "@/lib/explainer";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { PhotoFraming } from "@/components/PhotoFraming";
 import { ExplainerAudio } from "@/components/ExplainerAudio";
 
-const DEFAULTS: Explainer = { length: 4, tone: "friendly", illustrations: true, includeClips: true, style: "animated", music: true, scenes: [] };
+const DEFAULTS: Explainer = { length: 4, tone: "friendly", illustrations: true, includeClips: true, style: "animated", music: true, musicTrack: "mirror-bed", scenes: [] };
 const LABELS = Object.fromEntries(EXPLAINER_KINDS.map((k) => [k.value, k.label]));
 const safeName = (s: string) => s.replace(/[^\w-]+/g, "_").slice(0, 60) || "course";
 
@@ -195,7 +196,7 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
       const t0 = Date.now();
       const rec = await buildExplainerVideo({
         scenes, brand, pictures, recordings, clips, signal, width: W, height: W === 1920 ? 1080 : 720,
-        burnCaptions: kind === "mp4", videoStyle: ex.style ?? "animated", music: ex.music ?? true, labels: LABELS,
+        burnCaptions: kind === "mp4", videoStyle: ex.style ?? "animated", music: ex.music ?? true, musicTrack: getExplainerMusicTrack(ex.musicTrack).id, labels: LABELS,
         narrate: async (text, sc) => (await narrate({ data: { orgId: current.org_id, text, voice: sc.voice || brand.voice, brandKitId: brandKitId ?? null } })).wavBase64,
         onProgress: (msg, p) => {
           const pct = 30 + p * 0.68;
@@ -257,10 +258,23 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
               </Select>
               <p className="text-xs text-muted-foreground">{(ex.style ?? "animated") === "animated" ? "Moving text, diagrams and pictures with camera motion and transitions. No extra AI cost." : `Each scene gets a short AI clip with its words animated on top. Uses your clip allowance (${clipsLeft} of ${MONTHLY_CLIP_LIMIT} left this month).`} You can change the style for any scene.</p>
             </div>
-            <label className="flex items-start gap-2 text-sm">
-              <input type="checkbox" className="mt-1" disabled={!editable} checked={ex.music ?? true} onChange={(e) => change((x) => ({ ...x, music: e.target.checked }))} />
-              <span><strong>Background music</strong><span className="block text-muted-foreground">A soft music bed that gets quieter while the narrator speaks.</span></span>
-            </label>
+            <div className="space-y-3 text-sm sm:col-span-2">
+              <label className="flex items-start gap-2">
+                <input type="checkbox" className="mt-1" disabled={!editable} checked={ex.music ?? true} onChange={(e) => change((x) => ({ ...x, music: e.target.checked }))} />
+                <span><strong>Background music</strong><span className="block text-muted-foreground">A real royalty-free instrumental that gets quieter while the narrator speaks.</span></span>
+              </label>
+              {(ex.music ?? true) && (
+                <div className="ml-6 grid max-w-xl gap-2">
+                  <Label>Music track for this explainer</Label>
+                  <Select value={getExplainerMusicTrack(ex.musicTrack).id} disabled={!editable} onValueChange={(v) => change((e) => ({ ...e, musicTrack: v as ExplainerMusicTrack }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{EXPLAINER_MUSIC_TRACKS.map((track) => <SelectItem key={track.id} value={track.id}>{track.name} — {track.description}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <audio key={getExplainerMusicTrack(ex.musicTrack).id} className="h-10 w-full" controls preload="none" src={getExplainerMusicTrack(ex.musicTrack).url}>Your browser cannot preview this track.</audio>
+                  <p className="text-xs text-muted-foreground">CC0 music by Ondrosik. Commercial use is allowed; no attribution is required. Longer videos repeat the track with a smooth crossfade.</p>
+                </div>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground sm:col-span-2">Default voice: <strong>{brand.voice}</strong> (from this course's brand kit). You can pick a different voice for any scene below.</p>
             {editable && (
               <Button className="sm:col-span-2" onClick={writeScript} disabled={writing}>

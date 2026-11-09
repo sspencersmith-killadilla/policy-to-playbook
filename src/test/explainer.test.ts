@@ -69,7 +69,7 @@ describe("explainer timing", () => {
   });
 });
 
-import { countUp, footageNeeded, playsFootage, sceneStyle, transitionFor, cameraAt, kenBurnsZoom, musicGain } from "@/lib/explainer";
+import { countUp, footageNeeded, playsFootage, sceneStyle, transitionFor, cameraAt, kenBurnsZoom, musicGain, musicLoopSample } from "@/lib/explainer";
 
 describe("explainer video styles", () => {
   it("scene style overrides the video style, and the closing card is always animated", () => {
@@ -104,8 +104,18 @@ describe("explainer motion", () => {
     expect(cameraAt(0, 5, 0).scale).toBeGreaterThanOrEqual(1.02);
     expect(kenBurnsZoom(1.5, 5, 5)).toBeCloseTo(1.68);
   });
-  it("music is quieter under the voice", () => {
+  it("music is 20 dB below full scale under the voice and lifts only in pauses", () => {
+    expect(musicGain(true)).toBe(0.1);
+    expect(musicGain(false)).toBe(0.24);
     expect(musicGain(true)).toBeLessThan(musicGain(false));
+  });
+  it("crossfades a repeated instrumental instead of restarting it abruptly", () => {
+    const channel = Float32Array.from([0, 0.2, 0.4, 0.6, 0.8, 1]);
+    const fade = 2;
+    const period = channel.length - fade;
+    expect(musicLoopSample(channel, period, fade)).toBeCloseTo(0.8);
+    expect(musicLoopSample(channel, period + 1, fade)).toBeCloseTo(0.6);
+    expect(musicLoopSample(channel, period + 2, fade)).toBeCloseTo(0.4);
   });
 });
 

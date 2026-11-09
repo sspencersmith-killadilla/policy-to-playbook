@@ -166,6 +166,8 @@ export type ExplainerStyle = "animated" | "footage";
 
 export type ExplainerTone = "friendly" | "formal" | "plain";
 
+export type ExplainerMusicTrack = "mirror-bed" | "fresh-start" | "morning-meditation";
+
 export type Explainer = {
   length: 2 | 4 | 6;
   tone: ExplainerTone;
@@ -173,8 +175,10 @@ export type Explainer = {
   includeClips: boolean;
   /** Whole-video look; scenes can override. Missing means animated. */
   style?: ExplainerStyle;
-  /** Soft background music under the narration. */
+  /** Royalty-free background music under the narration. */
   music?: boolean;
+  /** Instrumental chosen for this explainer; missing uses the focused track. */
+  musicTrack?: ExplainerMusicTrack;
   scenes: ExplainerScene[];
 };
 

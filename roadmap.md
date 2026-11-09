@@ -1,4 +1,5 @@
 # Roadmap
+- [ ] Replace synthesized explainer music with licensed instrumental choices, saved per video, with narration ducking
 - [x] Four brand kits per organization with a per-course brand choice across previews and exports
 - [x] Secure organization-specific ElevenLabs key settings and voice routing
 - [ ] Signed-in ElevenLabs settings check — needs owner sign-in and a key with voice permissions.

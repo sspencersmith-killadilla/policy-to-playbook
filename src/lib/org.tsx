@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_BRAND, type Brand } from "./course";
+import { DEFAULT_BRAND, resolveCourseBrand, type Brand, type BrandKit, type BrandSlot } from "./course";
 
 export type OrgMembership = { org_id: string; role: "owner" | "editor" | "viewer"; name: string };
 

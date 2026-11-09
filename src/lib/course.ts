@@ -47,6 +47,16 @@ export type Brand = {
   voice: string;
 };
 
+export const BRAND_SLOTS = ["A", "B", "C", "D"] as const;
+export type BrandSlot = (typeof BRAND_SLOTS)[number];
+export type BrandKit = Brand & { id: string; org_id: string; slot: BrandSlot; name: string };
+
+/** Each course keeps its own kit; missing/old links deliberately fall back to Kit A. */
+export function resolveCourseBrand(kits: BrandKit[], brandKitId?: string | null): Brand {
+  const selected = kits.find((k) => k.id === brandKitId) ?? kits.find((k) => k.slot === "A") ?? kits[0];
+  return selected ? { ...DEFAULT_BRAND, ...selected } : DEFAULT_BRAND;
+}
+
 export const DEFAULT_BRAND: Brand = {
   logo_url: null,
   primary_color: "#1F3A5F",

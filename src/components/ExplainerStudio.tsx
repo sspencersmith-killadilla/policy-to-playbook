@@ -7,8 +7,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
 import {
   EXPLAINER_KINDS, MAX_ILLUSTRATIONS_PER_VIDEO, MONTHLY_CLIP_LIMIT, newId, sceneUsesPicture, type ExplainerStyle,
-   type Brand, type CourseContent, type Explainer, type ExplainerKind, type ExplainerScene, type ExplainerTone,
+    type Brand, type CourseContent, type Explainer, type ExplainerKind, type ExplainerScene, type ExplainerTone, type ExplainerMusicTrack,
 } from "@/lib/course";
+import { EXPLAINER_MUSIC_TRACKS, getExplainerMusicTrack } from "@/lib/explainer-music";
 import { checkSceneClip, makeIllustration, narrateText, startSceneClip, suggestClipPrompts, writeExplainerScript } from "@/lib/ai.functions";
 import { footageNeeded, sceneStyle } from "@/lib/explainer";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { PhotoFraming } from "@/components/PhotoFraming";
 import { ExplainerAudio } from "@/components/ExplainerAudio";
 
-const DEFAULTS: Explainer = { length: 4, tone: "friendly", illustrations: true, includeClips: true, style: "animated", music: true, scenes: [] };
+const DEFAULTS: Explainer = { length: 4, tone: "friendly", illustrations: true, includeClips: true, style: "animated", music: true, musicTrack: "mirror-bed", scenes: [] };
 const LABELS = Object.fromEntries(EXPLAINER_KINDS.map((k) => [k.value, k.label]));
 const safeName = (s: string) => s.replace(/[^\w-]+/g, "_").slice(0, 60) || "course";
 
@@ -195,7 +196,7 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
       const t0 = Date.now();
       const rec = await buildExplainerVideo({
         scenes, brand, pictures, recordings, clips, signal, width: W, height: W === 1920 ? 1080 : 720,
-        burnCaptions: kind === "mp4", videoStyle: ex.style ?? "animated", music: ex.music ?? true, labels: LABELS,
+        burnCaptions: kind === "mp4", videoStyle: ex.style ?? "animated", music: ex.music ?? true, musicTrack: ex.musicTrack, labels: LABELS,
         narrate: async (text, sc) => (await narrate({ data: { orgId: current.org_id, text, voice: sc.voice || brand.voice, brandKitId: brandKitId ?? null } })).wavBase64,
         onProgress: (msg, p) => {
           const pct = 30 + p * 0.68;

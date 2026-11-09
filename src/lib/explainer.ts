@@ -118,11 +118,11 @@ export const TRANSITION_SECONDS = 0.6;
 
 export const easeInOut = (x: number) => { const c = Math.max(0, Math.min(1, x)); return c < 0.5 ? 4 * c * c * c : 1 - Math.pow(-2 * c + 2, 3) / 2; };
 
-/** Slow camera drift across a scene: push in up to 4%, alternating drift direction. */
+/** Slow camera drift across a scene: starts 2% in (so edges never show), pushes in 4% more, alternating drift direction. */
 export function cameraAt(t: number, d: number, i: number) {
   const p = easeInOut(t / Math.max(0.1, d));
   const dir = i % 2 === 0 ? 1 : -1;
-  return { scale: 1 + 0.04 * p, dx: dir * (p - 0.5) * 12, dy: (p - 0.5) * -6 };
+  return { scale: 1.02 + 0.04 * p, dx: dir * (p - 0.5) * 12, dy: (p - 0.5) * -6 };
 }
 
 /** Ken Burns zoom on photos: grows 1.0 -> 1.12 of the saved zoom, keeping the focal point. */

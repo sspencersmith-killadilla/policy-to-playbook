@@ -1,7 +1,7 @@
 // Browser-only renderer for the explainer video: animated canvas scenes + narration, encoded to MP4.
 import type { Brand, ExplainerScene } from "./course";
 import type { Chapter, RecordedVideo } from "./exports";
-import { cameraAt, captionCues, countUp, cuesToVtt, EXPLAINER_CLOSING_ID, kenBurnsZoom, musicGain, normalizePhotoFrame, photoCoverRect, playsFootage, revealTimes, sceneDuration, sceneNarration, transitionFor, TRANSITION_SECONDS, withExplainerClosing, easeInOut, type Cue } from "./explainer";
+import { cameraAt, captionCues, countUp, cuesToVtt, EXPLAINER_CLOSING_ID, kenBurnsZoom, musicGain, normalizePhotoFrame, photoCoverRect, playsFootage, revealTimes, sceneDuration, sceneNarration, transitionFor, clipHandoff, clipTimeAt, HANDOFF_FADE, TRANSITION_SECONDS, withExplainerClosing, easeInOut, type Cue } from "./explainer";
 import type { ExplainerStyle } from "./course";
 
 export type ExplainerVideo = RecordedVideo & { vtt: string; titles: string[] };

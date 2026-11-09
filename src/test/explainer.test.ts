@@ -108,3 +108,17 @@ describe("explainer motion", () => {
     expect(musicGain(true)).toBeLessThan(musicGain(false));
   });
 });
+
+import { clipHandoff, clipTimeAt } from "@/lib/explainer";
+describe("short clip handoff", () => {
+  it("hands a 6s clip in a 15s scene to a slide instead of looping", () => {
+    expect(clipHandoff(15, 6)).toEqual({ clipEnd: 6, handoffStart: 5.5, mode: "slide" });
+    expect(clipTimeAt(10, 6)).toBeCloseTo(5.99);
+  });
+  it("holds the last frame for a gap under 1 second", () => {
+    expect(clipHandoff(6.5, 6).mode).toBe("hold");
+  });
+  it("leaves clips longer than the scene unchanged", () => {
+    expect(clipHandoff(5, 6).mode).toBe("none");
+  });
+});

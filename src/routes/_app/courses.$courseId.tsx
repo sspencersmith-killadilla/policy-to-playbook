@@ -60,21 +60,24 @@ function Editor() {
   const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
   const [explainerOpen, setExplainerOpen] = useState(false);
   const dirty = useRef(false);
+  const brand = resolveCourseBrand(brandKits, brandKitId);
+  useBrandFonts(brand);
 
   useEffect(() => {
-    if (q.data && !content) {
+    if (q.data && !content && brandKits.length) {
       setTitle(q.data.title);
       setContent(normalizeContent(q.data.content));
+      setBrandKitId(q.data.brand_kit_id ?? brandKits.find((k) => k.slot === "A")?.id ?? brandKits[0]!.id);
       setStatus(q.data.status);
     }
-  }, [q.data, content]);
+  }, [q.data, content, brandKits]);
 
   // Autosave
   useEffect(() => {
     if (!dirty.current || !content || !editable) return;
     setSaving("saving");
     const t = setTimeout(async () => {
-      const patch: Record<string, unknown> = { title, content, updated_at: new Date().toISOString() };
+      const patch: Record<string, unknown> = { title, content, brand_kit_id: brandKitId, updated_at: new Date().toISOString() };
       if (status === "approved") {
         patch["status"] = "draft";
         patch["approved_by"] = null;

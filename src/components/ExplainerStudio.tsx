@@ -261,7 +261,7 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
               <input type="checkbox" className="mt-1" disabled={!editable} checked={ex.music ?? true} onChange={(e) => change((x) => ({ ...x, music: e.target.checked }))} />
               <span><strong>Background music</strong><span className="block text-muted-foreground">A soft music bed that gets quieter while the narrator speaks.</span></span>
             </label>
-            <p className="text-xs text-muted-foreground sm:col-span-2">Default voice: <strong>{brand.voice}</strong> (change it in Brand kit). You can pick a different voice for any scene below.</p>
+            <p className="text-xs text-muted-foreground sm:col-span-2">Default voice: <strong>{brand.voice}</strong> (from this course's brand kit). You can pick a different voice for any scene below.</p>
             {editable && (
               <Button className="sm:col-span-2" onClick={writeScript} disabled={writing}>
                 {writing ? <><Loader2 className="animate-spin" /> Writing script… (up to a minute)</> : <><Sparkles /> {ex.scenes.length ? "Rewrite script" : "Write script"}</>}

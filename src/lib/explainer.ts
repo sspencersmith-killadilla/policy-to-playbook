@@ -1,5 +1,5 @@
 // Pure timing helpers for the explainer video (shared by the renderer, captions and tests).
-import type { ExplainerScene } from "./course";
+import type { ExplainerScene, ExplainerStyle } from "./course";
 
 export const EXPLAINER_CLOSING_ID = "relay-explainer-closing";
 
@@ -91,7 +91,6 @@ export function cuesToVtt(cues: Cue[]): string {
 }
 
 /* ---------------- Motion & style helpers ---------------- */
-import type { ExplainerStyle } from "./course";
 
 /** A scene's effective look: its own choice, else the video's, else animated. The closing card is always animated. */
 export function sceneStyle(scene: { id: string; style?: ExplainerStyle | null }, videoStyle?: ExplainerStyle | null): ExplainerStyle {

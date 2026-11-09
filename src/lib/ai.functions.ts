@@ -123,10 +123,12 @@ export const generateCourse = createServerFn({ method: "POST" })
       })),
     };
 
+    const { data: defaultBrand } = await supabase.from("brand_kits").select("id").eq("org_id", doc.org_id).eq("slot", "A").maybeSingle();
     const { data: course, error: cErr } = await supabase
       .from("courses")
       .insert({
         org_id: doc.org_id,
+        brand_kit_id: defaultBrand?.id ?? null,
         document_id: doc.id,
         title: result.title,
         description: result.description,
@@ -172,10 +174,10 @@ export const regenerateSlide = createServerFn({ method: "POST" })
 
 export const narrateText = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { orgId: string; text: string; voice: string }) => {
+  .inputValidator((d: { orgId: string; text: string; voice: string; brandKitId?: string | null }) => {
     const text = (d.text ?? "").trim().slice(0, 1500);
     if (!text) throw new Error("Nothing to narrate.");
-    return { orgId: d.orgId, text, voice: /^[A-Za-z]+$/.test(d.voice) || /^custom:[0-9a-f-]{36}$/.test(d.voice) ? d.voice : "Kore" };
+    return { orgId: d.orgId, text, brandKitId: d.brandKitId ?? null, voice: /^[A-Za-z]+$/.test(d.voice) || /^custom:[0-9a-f-]{36}$/.test(d.voice) ? d.voice : "Kore" };
   })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as any;
@@ -188,7 +190,9 @@ export const narrateText = createServerFn({ method: "POST" })
       const { data: v } = await supabase.from("org_voices").select("provider_voice_id").eq("id", data.voice.slice(7)).eq("org_id", data.orgId).maybeSingle();
       if (v) providerVoice = v.provider_voice_id;
       else {
-        const { data: bk } = await supabase.from("brand_kits").select("voice").eq("org_id", data.orgId).maybeSingle();
+        let query = supabase.from("brand_kits").select("voice").eq("org_id", data.orgId);
+        query = data.brandKitId ? query.eq("id", data.brandKitId) : query.eq("slot", "A");
+        const { data: bk } = await query.maybeSingle();
         data.voice = bk?.voice && /^[A-Za-z]+$/.test(bk.voice) ? bk.voice : "Kore";
       }
     }

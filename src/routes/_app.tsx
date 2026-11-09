@@ -33,7 +33,7 @@ function AppLayout() {
 const nav = [
   { to: "/dashboard", label: "Courses", icon: LayoutGrid },
   { to: "/new", label: "New course", icon: Plus },
-  { to: "/brand", label: "Brand kit", icon: Palette },
+  { to: "/brand", label: "Brand kits", icon: Palette },
   { to: "/team", label: "Team", icon: Users },
   { to: "/activity", label: "Activity", icon: History },
   { to: "/guide", label: "User guide", icon: BookOpen },
@@ -95,7 +95,7 @@ export function CreateOrg({ onDone }: { onDone?: () => void }) {
     <div className="flex min-h-screen items-center justify-center px-4">
       <form onSubmit={create} className="w-full max-w-md space-y-4">
         <h1 className="text-3xl font-semibold">Name your organization</h1>
-        <p className="text-muted-foreground">Courses, brand kit and team live inside an organization. You can invite colleagues next.</p>
+        <p className="text-muted-foreground">Courses, brand kits and team live inside an organization. You can invite colleagues next.</p>
         <Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme Health" />
         <Button type="submit" className="w-full" disabled={busy}>Create organization</Button>
       </form>

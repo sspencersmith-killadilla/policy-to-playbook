@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_app/guide")({
 
 const sections = [
   { id: "start", title: "1. Getting started" },
-  { id: "brand", title: "2. Set up your brand kit" },
+  { id: "brand", title: "2. Set up your brand kits" },
   { id: "team", title: "3. Invite your team" },
   { id: "create", title: "4. Create a course from a policy" },
   { id: "edit", title: "5. Edit slides and the quiz" },
@@ -62,8 +62,9 @@ function Guide() {
           <li><b>Viewer</b> – view and present courses only.</li>
         </ul>
 
-        <H id="brand">2. Set up your brand kit</H>
-        <p>Open <Link to="/brand" className="text-primary underline">Brand kit</Link> in the sidebar. Do this once; it applies to every course.</p>
+        <H id="brand">2. Set up your brand kits</H>
+        <p>Open <Link to="/brand" className="text-primary underline">Brand kit</Link> in the sidebar. Your organization has four kits: A, B, C and D. Give each a name, logo, colors, fonts and narrator voice. Kits B–D start as copies of Kit A.</p>
+        <p>On a course, use <b>Course brand</b> at the top to choose its kit. Changing that choice affects only this course; it does not rebrand your other courses. Editing a kit later updates every course that uses that kit.</p>
         <ul>
           <li><b>Logo</b> – a PNG or JPG under 400 KB. It appears on every slide.</li>
           <li><b>Colors</b> – primary, accent and background colors for slides.</li>
@@ -77,7 +78,7 @@ function Guide() {
               <li>Only owners can test, replace or remove the connection. Each organization has its own encrypted key; it is never displayed again. Removing it keeps existing team voices but pauses their use until the same ElevenLabs account is reconnected. Replace with a key from the same account to keep existing voices usable. ElevenLabs bills your account for usage.</li>
             </ol></li>
         </ul>
-        <Tip>The slide preview on the page updates as you change things. Click <b>Save brand kit</b> when done.</Tip>
+        <Tip>The slide preview updates as you change things. Click <b>Save kit</b> when done. Changing a course's brand choice moves it back to draft so it can be reviewed and approved again.</Tip>
 
         <H id="team">3. Invite your team</H>
         <ol>

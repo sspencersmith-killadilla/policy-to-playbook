@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/lib/org";
-import { normalizeContent, canEdit } from "@/lib/course";
+import { normalizeContent, canEdit, resolveCourseBrand } from "@/lib/course";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScaledSlide } from "@/components/SlideView";
@@ -25,14 +25,14 @@ export const Route = createFileRoute("/_app/dashboard")({
 });
 
 function Dashboard() {
-  const { current, brand } = useOrg();
+  const { current, brandKits } = useOrg();
   const { newOrg } = Route.useSearch();
   const q = useQuery({
     queryKey: ["courses", current?.org_id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("courses")
-        .select("id, title, description, status, content, updated_at")
+        .select("id, title, description, status, content, brand_kit_id, updated_at")
         .eq("org_id", current!.org_id)
         .order("updated_at", { ascending: false });
       if (error) throw error;
@@ -68,7 +68,7 @@ function Dashboard() {
             return (
               <Link key={c.id} to="/courses/$courseId" params={{ courseId: c.id }} className="group overflow-hidden rounded-lg border bg-card transition hover:shadow-lg">
                 {content.slides[0] ? (
-                  <ScaledSlide slide={content.slides[0]} brand={brand} index={0} total={content.slides.length} />
+                  <ScaledSlide slide={content.slides[0]} brand={resolveCourseBrand(brandKits, c.brand_kit_id)} index={0} total={content.slides.length} />
                 ) : <div className="aspect-video bg-muted" />}
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2">

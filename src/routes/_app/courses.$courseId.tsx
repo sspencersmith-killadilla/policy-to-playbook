@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { ArrowDown, ArrowUp, Copy, Trash2, Plus, Sparkles, Play, Download, CheckCircle2, Volume2, Loader2, History, Clapperboard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
-import { canEdit, emptySlide, VOICE_CHOICES, voiceLabel, LAYOUTS, newId, normalizeContent, type CourseContent, type Slide, type QuizQuestion } from "@/lib/course";
+import { canEdit, emptySlide, resolveCourseBrand, VOICE_CHOICES, voiceLabel, LAYOUTS, newId, normalizeContent, type Brand, type CourseContent, type Slide, type QuizQuestion } from "@/lib/course";
 import { useOrgVoices } from "@/lib/useOrgVoices";
 import { customVoiceValue } from "@/lib/voices";
 import { regenerateSlide, narrateText, startSceneClip, checkSceneClip, suggestClipPrompts } from "@/lib/ai.functions";
@@ -40,8 +40,7 @@ export const Route = createFileRoute("/_app/courses/$courseId")({
 
 function Editor() {
   const { courseId } = Route.useParams();
-  const { current, brand } = useOrg();
-  useBrandFonts(brand);
+  const { current, brandKits } = useOrg();
   const qc = useQueryClient();
   const editable = canEdit(current?.role);
   const q = useQuery({
@@ -55,26 +54,30 @@ function Editor() {
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState<CourseContent | null>(null);
+  const [brandKitId, setBrandKitId] = useState<string | null>(null);
   const [status, setStatus] = useState("draft");
   const [sel, setSel] = useState(0);
   const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
   const [explainerOpen, setExplainerOpen] = useState(false);
   const dirty = useRef(false);
+  const brand = resolveCourseBrand(brandKits, brandKitId);
+  useBrandFonts(brand);
 
   useEffect(() => {
-    if (q.data && !content) {
+    if (q.data && !content && brandKits.length) {
       setTitle(q.data.title);
       setContent(normalizeContent(q.data.content));
+      setBrandKitId(q.data.brand_kit_id ?? brandKits.find((k) => k.slot === "A")?.id ?? brandKits[0]!.id);
       setStatus(q.data.status);
     }
-  }, [q.data, content]);
+  }, [q.data, content, brandKits]);
 
   // Autosave
   useEffect(() => {
     if (!dirty.current || !content || !editable) return;
     setSaving("saving");
     const t = setTimeout(async () => {
-      const patch: Record<string, unknown> = { title, content, updated_at: new Date().toISOString() };
+      const patch: Record<string, unknown> = { title, content, brand_kit_id: brandKitId, updated_at: new Date().toISOString() };
       if (status === "approved") {
         patch["status"] = "draft";
         patch["approved_by"] = null;
@@ -90,7 +93,7 @@ function Editor() {
       qc.invalidateQueries({ queryKey: ["courses"] });
     }, 1200);
     return () => clearTimeout(t);
-  }, [content, title]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [content, title, brandKitId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (q.isLoading || !content) return <p className="p-10 text-muted-foreground">Loading…</p>;
   if (q.error) return <p className="p-10 text-destructive">{(q.error as Error).message}</p>;
@@ -132,14 +135,18 @@ function Editor() {
     <div className="flex h-screen flex-col">
       <header className="flex items-center gap-3 border-b bg-card px-6 py-3">
         <Input value={title} disabled={!editable} onChange={(e) => { dirty.current = true; setTitle(e.target.value); }} className="font-display max-w-xl border-transparent text-xl font-semibold shadow-none focus-visible:border-input" />
+        <Select value={brandKitId ?? ""} disabled={!editable} onValueChange={(id) => { dirty.current = true; setBrandKitId(id); }}>
+          <SelectTrigger aria-label="Course brand" className="w-52"><SelectValue placeholder="Course brand" /></SelectTrigger>
+          <SelectContent>{brandKits.map((kit) => <SelectItem key={kit.id} value={kit.id}>{kit.slot} · {kit.name}</SelectItem>)}</SelectContent>
+        </Select>
         <Badge variant={status === "approved" ? "default" : "secondary"} className="capitalize">{status}</Badge>
         <span className="text-xs text-muted-foreground">{saving === "saving" ? "Saving…" : saving === "saved" ? "All changes saved" : ""}</span>
         <div className="ml-auto flex gap-2">
           {editable && status !== "approved" && <Button variant="outline" onClick={approve}><CheckCircle2 /> Approve</Button>}
           <Button variant="outline" asChild><Link to="/present/$courseId" params={{ courseId }}><Play /> Present</Link></Button>
           <Button variant="outline" onClick={() => setExplainerOpen(true)}><Clapperboard /> Explainer video</Button>
-          <ExportMenu courseId={courseId} title={title} content={content} approved={status === "approved"} passScore={q.data!.pass_score} />
-          <ExplainerStudio open={explainerOpen} onOpenChange={setExplainerOpen} courseId={courseId} title={title} content={content}
+          <ExportMenu courseId={courseId} title={title} content={content} brand={brand} brandKitId={brandKitId} approved={status === "approved"} passScore={q.data!.pass_score} />
+          <ExplainerStudio open={explainerOpen} onOpenChange={setExplainerOpen} courseId={courseId} title={title} content={content} brand={brand} brandKitId={brandKitId}
             approved={status === "approved"} editable={editable} passScore={q.data!.pass_score}
             onSaved={(explainer) => setContent((c) => (c ? { ...c, explainer } : c))} />
         </div>
@@ -181,7 +188,7 @@ function Editor() {
                   </div>
                 )}
               </div>
-              <SlideForm key={slide.id} slide={slide} onChange={setSlide} disabled={!editable} courseId={courseId} />
+              <SlideForm key={slide.id} slide={slide} onChange={setSlide} disabled={!editable} courseId={courseId} brand={brand} brandKitId={brandKitId} />
             </div>
           ) : <p className="p-6">No slides.</p>}
         </TabsContent>
@@ -196,10 +203,10 @@ function Editor() {
   );
 }
 
-function SlideForm({ slide, onChange, disabled, courseId }: { slide: Slide; onChange: (s: Slide) => void; disabled: boolean; courseId: string }) {
+function SlideForm({ slide, onChange, disabled, courseId, brand, brandKitId }: { slide: Slide; onChange: (s: Slide) => void; disabled: boolean; courseId: string; brand: Brand; brandKitId: string | null }) {
   const regen = useServerFn(regenerateSlide);
   const narrate = useServerFn(narrateText);
-  const { current, brand } = useOrg();
+  const { current } = useOrg();
   const [instruction, setInstruction] = useState("");
   const [busy, setBusy] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -220,7 +227,7 @@ function SlideForm({ slide, onChange, disabled, courseId }: { slide: Slide; onCh
   async function preview() {
     setPlaying(true);
     try {
-      const { wavBase64 } = await narrate({ data: { orgId: current!.org_id, text: slide.notes, voice: slide.voice || brand.voice } });
+      const { wavBase64 } = await narrate({ data: { orgId: current!.org_id, text: slide.notes, voice: slide.voice || brand.voice, brandKitId } });
       const a = new Audio(`data:audio/wav;base64,${wavBase64}`);
       a.onended = () => setPlaying(false);
       await a.play();
@@ -329,8 +336,8 @@ function Versions({ courseId, onRestore, disabled, currentTitle, currentContent 
   );
 }
 
-function ExportMenu({ courseId, title, content, approved, passScore }: { courseId: string; title: string; content: CourseContent; approved: boolean; passScore: number }) {
-  const { brand, current } = useOrg();
+function ExportMenu({ courseId, title, content, brand, brandKitId, approved, passScore }: { courseId: string; title: string; content: CourseContent; brand: Brand; brandKitId: string | null; approved: boolean; passScore: number }) {
+  const { current } = useOrg();
   const narrate = useServerFn(narrateText);
   const hiddenRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
@@ -372,7 +379,7 @@ function ExportMenu({ courseId, title, content, approved, passScore }: { courseI
         const videoOpts = asVideo ? {
             slides: content.slides, images: imgs, signal: abort.current.signal,
             clips: await Promise.all(content.slides.map(async (s) => s.clip_path ? (await supabase.storage.from("documents").createSignedUrl(s.clip_path, 3600)).data?.signedUrl ?? null : null)),
-            narrate: async (text: string, slide: Slide) => slide.voice_path ? await recordingBase64(slide.voice_path) : (await narrate({ data: { orgId: current!.org_id, text, voice: slide.voice || brand.voice } })).wavBase64,
+            narrate: async (text: string, slide: Slide) => slide.voice_path ? await recordingBase64(slide.voice_path) : (await narrate({ data: { orgId: current!.org_id, text, voice: slide.voice || brand.voice, brandKitId } })).wavBase64,
             onProgress: (msg: string, pct: number) => setJob({ msg: msg + eta(pct), pct: pct * (kind === "scorm" ? 0.95 : 1) }),
             width: W, height: W === 1920 ? 1080 : 720,
             onFallback: () => toast.info("This browser can't use fast video building, so the video will record in real time. Keep this tab open and in front."),

@@ -1,14 +1,16 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_BRAND, type Brand } from "./course";
+import { DEFAULT_BRAND, resolveCourseBrand, type Brand, type BrandKit, type BrandSlot } from "./course";
 
 export type OrgMembership = { org_id: string; role: "owner" | "editor" | "viewer"; name: string };
 
 type Ctx = {
   orgs: OrgMembership[];
   current: OrgMembership | null;
+  /** Kit A, kept for organization-level defaults. Courses use their own selected kit. */
   brand: Brand;
+  brandKits: BrandKit[];
   setCurrent: (id: string) => void;
   refresh: () => Promise<void>;
   loading: boolean;
@@ -40,17 +42,20 @@ export function OrgProvider({ userId, children }: { userId: string; children: Re
     queryKey: ["brand", current?.org_id],
     enabled: !!current,
     queryFn: async () => {
-      const { data } = await supabase.from("brand_kits").select("*").eq("org_id", current!.org_id).maybeSingle();
-      return { ...DEFAULT_BRAND, ...(data ?? {}) } as Brand;
+      const { data, error } = await supabase.from("brand_kits").select("*").eq("org_id", current!.org_id).order("slot");
+      if (error) throw error;
+      return (data ?? []).map((kit) => ({ ...DEFAULT_BRAND, ...kit, slot: kit.slot as BrandSlot })) as BrandKit[];
     },
   });
+  const brandKits = brandQ.data ?? [];
 
   const value = useMemo<Ctx>(
     () => ({
       orgs,
       current,
-      brand: brandQ.data ?? DEFAULT_BRAND,
-      loading: orgsQ.isLoading,
+      brand: resolveCourseBrand(brandKits),
+      brandKits,
+      loading: orgsQ.isLoading || (!!current && brandQ.isLoading),
       setCurrent: (id) => {
         localStorage.setItem(KEY, id);
         setCurrentId(id);
@@ -59,7 +64,7 @@ export function OrgProvider({ userId, children }: { userId: string; children: Re
         await qc.invalidateQueries({ queryKey: ["orgs", userId] });
       },
     }),
-    [orgs, current, brandQ.data, orgsQ.isLoading, qc, userId],
+    [orgs, current, brandKits, brandQ.isLoading, orgsQ.isLoading, qc, userId],
   );
   return <OrgContext.Provider value={value}>{children}</OrgContext.Provider>;
 }

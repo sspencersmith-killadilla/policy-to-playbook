@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrg, logAudit } from "@/lib/org";
 import {
   EXPLAINER_KINDS, MAX_ILLUSTRATIONS_PER_VIDEO, MONTHLY_CLIP_LIMIT, newId, sceneUsesPicture, type ExplainerStyle,
-   type CourseContent, type Explainer, type ExplainerKind, type ExplainerScene, type ExplainerTone,
+   type Brand, type CourseContent, type Explainer, type ExplainerKind, type ExplainerScene, type ExplainerTone,
 } from "@/lib/course";
 import { checkSceneClip, makeIllustration, narrateText, startSceneClip, suggestClipPrompts, writeExplainerScript } from "@/lib/ai.functions";
 import { footageNeeded, sceneStyle } from "@/lib/explainer";
@@ -30,11 +30,11 @@ async function signed(path: string | null | undefined) {
   return (await supabase.storage.from("documents").createSignedUrl(path, 3600)).data?.signedUrl ?? null;
 }
 
-export function ExplainerStudio({ open, onOpenChange, courseId, title, content, approved, editable, passScore, onSaved }: {
-  open: boolean; onOpenChange: (o: boolean) => void; courseId: string; title: string; content: CourseContent;
+export function ExplainerStudio({ open, onOpenChange, courseId, title, content, brand, brandKitId, approved, editable, passScore, onSaved }: {
+  open: boolean; onOpenChange: (o: boolean) => void; courseId: string; title: string; content: CourseContent; brand: Brand; brandKitId: string | null;
   approved: boolean; editable: boolean; passScore: number; onSaved: (e: Explainer) => void;
 }) {
-  const { brand, current } = useOrg();
+  const { current } = useOrg();
   const write = useServerFn(writeExplainerScript);
   const illustrate = useServerFn(makeIllustration);
   const narrate = useServerFn(narrateText);
@@ -196,7 +196,7 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
       const rec = await buildExplainerVideo({
         scenes, brand, pictures, recordings, clips, signal, width: W, height: W === 1920 ? 1080 : 720,
         burnCaptions: kind === "mp4", videoStyle: ex.style ?? "animated", music: ex.music ?? true, labels: LABELS,
-        narrate: async (text, sc) => (await narrate({ data: { orgId: current.org_id, text, voice: sc.voice || brand.voice } })).wavBase64,
+        narrate: async (text, sc) => (await narrate({ data: { orgId: current.org_id, text, voice: sc.voice || brand.voice, brandKitId: brandKitId ?? null } })).wavBase64,
         onProgress: (msg, p) => {
           const pct = 30 + p * 0.68;
           const left = p > 40 ? ((Date.now() - t0) / p) * (100 - p) / 1000 : 0;
@@ -261,7 +261,7 @@ export function ExplainerStudio({ open, onOpenChange, courseId, title, content, 
               <input type="checkbox" className="mt-1" disabled={!editable} checked={ex.music ?? true} onChange={(e) => change((x) => ({ ...x, music: e.target.checked }))} />
               <span><strong>Background music</strong><span className="block text-muted-foreground">A soft music bed that gets quieter while the narrator speaks.</span></span>
             </label>
-            <p className="text-xs text-muted-foreground sm:col-span-2">Default voice: <strong>{brand.voice}</strong> (change it in Brand kit). You can pick a different voice for any scene below.</p>
+            <p className="text-xs text-muted-foreground sm:col-span-2">Default voice: <strong>{brand.voice}</strong> (from this course's brand kit). You can pick a different voice for any scene below.</p>
             {editable && (
               <Button className="sm:col-span-2" onClick={writeScript} disabled={writing}>
                 {writing ? <><Loader2 className="animate-spin" /> Writing script… (up to a minute)</> : <><Sparkles /> {ex.scenes.length ? "Rewrite script" : "Write script"}</>}

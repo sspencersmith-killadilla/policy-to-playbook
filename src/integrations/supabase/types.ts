@@ -61,11 +61,14 @@ export type Database = {
           background_color: string
           body_font: string
           heading_font: string
+          id: string
           intro_text: string
           logo_url: string | null
+          name: string
           org_id: string
           outro_text: string
           primary_color: string
+          slot: string
           text_color: string
           updated_at: string
           voice: string
@@ -75,11 +78,14 @@ export type Database = {
           background_color?: string
           body_font?: string
           heading_font?: string
+          id?: string
           intro_text?: string
           logo_url?: string | null
+          name?: string
           org_id: string
           outro_text?: string
           primary_color?: string
+          slot?: string
           text_color?: string
           updated_at?: string
           voice?: string
@@ -89,11 +95,14 @@ export type Database = {
           background_color?: string
           body_font?: string
           heading_font?: string
+          id?: string
           intro_text?: string
           logo_url?: string | null
+          name?: string
           org_id?: string
           outro_text?: string
           primary_color?: string
+          slot?: string
           text_color?: string
           updated_at?: string
           voice?: string
@@ -102,7 +111,7 @@ export type Database = {
           {
             foreignKeyName: "brand_kits_org_id_fkey"
             columns: ["org_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -161,6 +170,7 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           approved_by_email: string | null
+          brand_kit_id: string | null
           content: Json
           created_at: string
           created_by: string
@@ -177,6 +187,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           approved_by_email?: string | null
+          brand_kit_id?: string | null
           content?: Json
           created_at?: string
           created_by: string
@@ -193,6 +204,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           approved_by_email?: string | null
+          brand_kit_id?: string | null
           content?: Json
           created_at?: string
           created_by?: string
@@ -206,6 +218,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "courses_brand_kit_id_fkey"
+            columns: ["brand_kit_id"]
+            isOneToOne: false
+            referencedRelation: "brand_kits"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "courses_document_id_fkey"
             columns: ["document_id"]
